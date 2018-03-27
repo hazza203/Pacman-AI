@@ -18,6 +18,47 @@ import random, util
 
 from game import Agent
 
+# Some functions used in the evaluationFunction:
+
+def nearestFood(state):
+    """
+    Returns the manhattan distance to the nearest food.
+    Takes a GameState as argument.
+    """
+    pacmanPos = state.getPacmanPosition();
+    dist = []
+    for food in state.getFood().asList():
+        dist.append(manhattanDistance(pacmanPos, food))
+    if len(dist) == 0:
+        return 0
+    return min(dist)
+
+def closeToGhost(state, tolerance):
+    """
+    Returns whether Pacman is within "tolerance" of a scary ghost
+    Takes a GameState as argument.
+    """
+    pacmanPos = state.getPacmanPosition();
+    dist = []
+    for ghost in state.getGhostStates():
+        # Don't worry about scared ghosts
+        if ghost.scaredTimer == 0:
+            dist.append(manhattanDistance(pacmanPos, ghost.getPosition()))
+    if len(dist) == 0:
+        return False
+    if min(dist) < tolerance:
+        return True
+    return False
+
+def bonus(score, percent):
+    change = abs(score) * percent / 100
+    return score + change
+
+def penalty(score, percent):
+    change = abs(score) * percent / 100
+    return score - change
+
+
 class ReflexAgent(Agent):
     """
       A reflex agent chooses an action at each choice point by examining
@@ -78,50 +119,14 @@ class ReflexAgent(Agent):
         score = successorGameState.getScore()
 
         # If Pacman is moving towards food, apply a bonus
-        def nearestFood(state):
-            """
-            Returns the manhattan distance to the nearest food.
-            Takes a GameState as argument.
-            """
-            pacmanPos = state.getPacmanPosition();
-            dist = []
-            for food in state.getFood().asList():
-                dist.append(manhattanDistance(pacmanPos, food))
-            if len(dist) == 0:
-                return 0
-            return min(dist)
         nearestFoodThen = nearestFood(currentGameState)
         nearestFoodNow = nearestFood(successorGameState)
         if nearestFoodNow < nearestFoodThen:
-            if score > 0:
-                score *= 1.2
-            else:
-                score /= 1.2
+            score = bonus(score, 20)
 
-
-        # If Pacman is close to a ghost apply a penalty,
-        # unless the ghost is scared
-        def closeToGhost(state, tolerance):
-            """
-            Returns whether Pacman is within "tolerance" of a ghost
-            Takes a GameState as argument.
-            """
-            pacmanPos = state.getPacmanPosition();
-            dist = []
-            for ghost in state.getGhostStates():
-                if ghost.scaredTimer == 0:
-                    dist.append(manhattanDistance(pacmanPos, ghost.getPosition()))
-            if len(dist) == 0:
-                # If there are no scary ghosts on the board then don't worry about them
-                return False
-            if min(dist) < tolerance:
-                return True
-            return False
+        # If Pacman is close to a scary ghost apply a penalty
         if closeToGhost(successorGameState, 3):
-            if score > 0:
-                score *= 0.7
-            else:
-                score /= 0.7
+            score = penalty(score, 30)
 
         return score
 
