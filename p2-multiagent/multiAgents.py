@@ -160,14 +160,7 @@ class MultiAgentSearchAgent(Agent):
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
-def minimaxTraversal(gameState, depth, maxdepth, agent):
-    """
-    Returns the utility of the agent's choice from this node
-    Pass in the gameState, the depth (in ply) of the tree so far
-    the maximum depth and the index of the agent making the move
-    """
-    # if we have reached the bottom, i.e. the maximum depth and the last agent to move
-    # return the score as the utility
+
 
 class MinimaxAgent(MultiAgentSearchAgent):
     """
@@ -191,8 +184,44 @@ class MinimaxAgent(MultiAgentSearchAgent):
           gameState.getNumAgents():
             Returns the total number of agents in the game
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        # Recursive minimax function which returns the action to take
+        def minimaxTraversal(gameState, depth, agent):
+            scores = []
+            if depth == 0 or gameState.isWin() or gameState.isLose():
+                return self.evaluationFunction(gameState), None
+
+            actions = gameState.getLegalActions(agent)
+            # If agent is 0 then we are picking the highest score
+            if agent == 0:
+                for action in actions:
+                    next_state = gameState.generateSuccessor(agent, action)
+                    # get the scores that min chose so we can choose the highest of them
+                    scores.append(minimaxTraversal(next_state, depth, agent+1)[0])
+                highest_score = max(scores)
+                for i in range(len(scores)):
+                    if scores[i] == highest_score:
+                        action_index = i
+                return highest_score, actions[action_index]
+            # If agent is not 0 then we are a ghost agent and we are choosing the lowest score
+            else:
+                for action in actions:
+                    next_state = gameState.generateSuccessor(agent, action)
+                    # if this is the last ghost we are calculating scores for, swap to max's turn
+                    if agent == gameState.getNumAgents() - 1:
+                        scores.append(minimaxTraversal(next_state, depth - 1, 0)[0])
+                    # else we have more ghosts to calculate scores for
+                    else:
+                        scores.append(minimaxTraversal(next_state, depth, agent+1)[0])
+                lowest_score = min(scores)
+                for i in range(len(scores)):
+                    if scores[i] == lowest_score:
+                        action_index = i
+                return lowest_score, actions[action_index]
+
+        action = minimaxTraversal(gameState, self.depth, 0)[1]
+        return action
+
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
