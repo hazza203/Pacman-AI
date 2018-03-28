@@ -18,6 +18,47 @@ import random, util
 
 from game import Agent
 
+# Some functions used in the evaluationFunction:
+
+def nearestFood(state):
+    """
+    Returns the manhattan distance to the nearest food.
+    Takes a GameState as argument.
+    """
+    pacmanPos = state.getPacmanPosition();
+    dist = []
+    for food in state.getFood().asList():
+        dist.append(manhattanDistance(pacmanPos, food))
+    if len(dist) == 0:
+        return 0
+    return min(dist)
+
+def closeToGhost(state, tolerance):
+    """
+    Returns whether Pacman is within "tolerance" of a scary ghost
+    Takes a GameState as argument.
+    """
+    pacmanPos = state.getPacmanPosition();
+    dist = []
+    for ghost in state.getGhostStates():
+        # Don't worry about scared ghosts
+        if ghost.scaredTimer == 0:
+            dist.append(manhattanDistance(pacmanPos, ghost.getPosition()))
+    if len(dist) == 0:
+        return False
+    if min(dist) < tolerance:
+        return True
+    return False
+
+def bonus(score, percent):
+    change = abs(score) * percent / 100
+    return score + change
+
+def penalty(score, percent):
+    change = abs(score) * percent / 100
+    return score - change
+
+
 class ReflexAgent(Agent):
     """
       A reflex agent chooses an action at each choice point by examining
@@ -68,39 +109,24 @@ class ReflexAgent(Agent):
         """
         # Useful information you can extract from a GameState (pacman.py)
         successorGameState = currentGameState.generatePacmanSuccessor(action)
-        curPos = currentGameState.getPacmanPosition()
         newPos = successorGameState.getPacmanPosition()
         newFood = successorGameState.getFood()
-        foodList = newFood.asList()
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
-        print (curPos)
-        print (newPos)
-        x,y = curPos
-        dx,dy = newPos
-        smallest = 99999
-        closest = None
-
-
+        "*** YOUR CODE HERE ***"
+        # The strategy here is to apply a series of bonuses and penalties to the score
         score = successorGameState.getScore()
 
-        for food in foodList:
-            fx,fy = food
-            dist = abs(x-fx) + abs(y-fy)
-            if dist < smallest:
-                closest = food
-                smallest = dist
+        # If Pacman is moving towards food, apply a bonus
+        nearestFoodThen = nearestFood(currentGameState)
+        nearestFoodNow = nearestFood(successorGameState)
+        if nearestFoodNow < nearestFoodThen:
+            score = bonus(score, 20)
 
-        if len(foodList) == 0:
-            closest = foodList[0]
-
-        fx,fy = closest
-
-        startDist = abs(x - fx) + abs(y - fy)
-        newDist = abs(dx - fx) + abs(dy - fy)
-        if newDist < startDist:
-            score = score * 1.5
+        # If Pacman is close to a scary ghost apply a penalty
+        if closeToGhost(successorGameState, 3):
+            score = penalty(score, 30)
 
         return score
 
@@ -133,6 +159,15 @@ class MultiAgentSearchAgent(Agent):
         self.index = 0 # Pacman is always agent index 0
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
+
+def minimaxTraversal(gameState, depth, maxdepth, agent):
+    """
+    Returns the utility of the agent's choice from this node
+    Pass in the gameState, the depth (in ply) of the tree so far
+    the maximum depth and the index of the agent making the move
+    """
+    # if we have reached the bottom, i.e. the maximum depth and the last agent to move
+    # return the score as the utility
 
 class MinimaxAgent(MultiAgentSearchAgent):
     """
