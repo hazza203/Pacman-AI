@@ -18,6 +18,47 @@ import random, util
 
 from game import Agent
 
+# Some functions used in the evaluationFunction:
+
+def nearestFood(state):
+    """
+    Returns the manhattan distance to the nearest food.
+    Takes a GameState as argument.
+    """
+    pacmanPos = state.getPacmanPosition();
+    dist = []
+    for food in state.getFood().asList():
+        dist.append(manhattanDistance(pacmanPos, food))
+    if len(dist) == 0:
+        return 0
+    return min(dist)
+
+def closeToGhost(state, tolerance):
+    """
+    Returns whether Pacman is within "tolerance" of a scary ghost
+    Takes a GameState as argument.
+    """
+    pacmanPos = state.getPacmanPosition();
+    dist = []
+    for ghost in state.getGhostStates():
+        # Don't worry about scared ghosts
+        if ghost.scaredTimer == 0:
+            dist.append(manhattanDistance(pacmanPos, ghost.getPosition()))
+    if len(dist) == 0:
+        return False
+    if min(dist) < tolerance:
+        return True
+    return False
+
+def bonus(score, percent):
+    change = abs(score) * percent / 100
+    return score + change
+
+def penalty(score, percent):
+    change = abs(score) * percent / 100
+    return score - change
+
+
 class ReflexAgent(Agent):
     """
       A reflex agent chooses an action at each choice point by examining
@@ -74,7 +115,20 @@ class ReflexAgent(Agent):
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
         "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        # The strategy here is to apply a series of bonuses and penalties to the score
+        score = successorGameState.getScore()
+
+        # If Pacman is moving towards food, apply a bonus
+        nearestFoodThen = nearestFood(currentGameState)
+        nearestFoodNow = nearestFood(successorGameState)
+        if nearestFoodNow < nearestFoodThen:
+            score = bonus(score, 20)
+
+        # If Pacman is close to a scary ghost apply a penalty
+        if closeToGhost(successorGameState, 3):
+            score = penalty(score, 30)
+
+        return score
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -106,6 +160,8 @@ class MultiAgentSearchAgent(Agent):
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
+
+
 class MinimaxAgent(MultiAgentSearchAgent):
     """
       Your minimax agent (question 2)
@@ -128,8 +184,44 @@ class MinimaxAgent(MultiAgentSearchAgent):
           gameState.getNumAgents():
             Returns the total number of agents in the game
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        # Recursive minimax function which returns the action to take
+        def minimaxTraversal(gameState, depth, agent):
+            scores = []
+            if depth == 0 or gameState.isWin() or gameState.isLose():
+                return self.evaluationFunction(gameState), None
+
+            actions = gameState.getLegalActions(agent)
+            # If agent is 0 then we are picking the highest score
+            if agent == 0:
+                for action in actions:
+                    next_state = gameState.generateSuccessor(agent, action)
+                    # get the scores that min chose so we can choose the highest of them
+                    scores.append(minimaxTraversal(next_state, depth, agent+1)[0])
+                highest_score = max(scores)
+                for i in range(len(scores)):
+                    if scores[i] == highest_score:
+                        action_index = i
+                return highest_score, actions[action_index]
+            # If agent is not 0 then we are a ghost agent and we are choosing the lowest score
+            else:
+                for action in actions:
+                    next_state = gameState.generateSuccessor(agent, action)
+                    # if this is the last ghost we are calculating scores for, swap to max's turn
+                    if agent == gameState.getNumAgents() - 1:
+                        scores.append(minimaxTraversal(next_state, depth - 1, 0)[0])
+                    # else we have more ghosts to calculate scores for
+                    else:
+                        scores.append(minimaxTraversal(next_state, depth, agent+1)[0])
+                lowest_score = min(scores)
+                for i in range(len(scores)):
+                    if scores[i] == lowest_score:
+                        action_index = i
+                return lowest_score, actions[action_index]
+
+        action = minimaxTraversal(gameState, self.depth, 0)[1]
+        return action
+
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
