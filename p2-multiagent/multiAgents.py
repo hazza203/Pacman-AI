@@ -233,7 +233,17 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        AlphaBetaResult = namedTuple('AlphaBetaResult', ['score', 'action'])
+
+        def alphaBetaTraversal(gameState, depth, agent, alpha, beta):
+            if depth == 0 or gameState.isWin() or gameState.isLose():
+                return AlphaBetaResult(self.evaluationFunction(gameState), None)
+            actions = gameState.getLegalActions(agent)
+            for action in actions:
+                # TODO
+            return
+
+        return alphaBetaTraversal(gameState, self.depth, 0, None, None).action
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
