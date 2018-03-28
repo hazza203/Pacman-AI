@@ -160,6 +160,15 @@ class MultiAgentSearchAgent(Agent):
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
+def minimaxTraversal(gameState, depth, maxdepth, agent):
+    """
+    Returns the utility of the agent's choice from this node
+    Pass in the gameState, the depth (in ply) of the tree so far
+    the maximum depth and the index of the agent making the move
+    """
+    # if we have reached the bottom, i.e. the maximum depth and the last agent to move
+    # return the score as the utility
+
 class MinimaxAgent(MultiAgentSearchAgent):
     """
       Your minimax agent (question 2)
