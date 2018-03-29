@@ -233,15 +233,32 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        AlphaBetaResult = namedTuple('AlphaBetaResult', ['score', 'action'])
+        AlphaBetaResult = namedTuple('AlphaBetaResult', ['score', 'action', 'alpha', 'beta'])
 
+        # TODO: This doesn't use alpha or beta...
         def alphaBetaTraversal(gameState, depth, agent, alpha, beta):
             if depth == 0 or gameState.isWin() or gameState.isLose():
                 return AlphaBetaResult(self.evaluationFunction(gameState), None)
             actions = gameState.getLegalActions(agent)
+            results = []
             for action in actions:
-                # TODO
-            return
+                next_state = gameState.generateSuccessor(agent, action)
+                # If we are the last ghost, it's Pacman's turn on the next ply
+                if agent == gameState.getNumAgents() - 1:
+                    results.append(gameState, depth - 1, 0, alpha, beta)
+                else:
+                    results.append(gameState, depth, agent + 1, alpha, beta)
+            choice = None
+            for result in results:
+                # If we are Pacman, select the action with the highest score
+                if agent == 0:
+                    if choice == None or result.score > choice.score:
+                        choice = result
+                # Otherwise we are a ghost so select the lowest score
+                else:
+                    if choice == None or result.score < choice.score:
+                        choice = result
+            return choice
 
         return alphaBetaTraversal(gameState, self.depth, 0, None, None).action
 
