@@ -14,7 +14,7 @@
 
 from util import manhattanDistance
 from game import Directions
-import random, util
+import random, util, collections
 
 from game import Agent
 
@@ -233,34 +233,62 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        AlphaBetaResult = namedTuple('AlphaBetaResult', ['score', 'action', 'alpha', 'beta'])
 
-        # TODO: This doesn't use alpha or beta...
         def alphaBetaTraversal(gameState, depth, agent, alpha, beta):
             if depth == 0 or gameState.isWin() or gameState.isLose():
-                return AlphaBetaResult(self.evaluationFunction(gameState), None)
-            actions = gameState.getLegalActions(agent)
-            results = []
-            for action in actions:
-                next_state = gameState.generateSuccessor(agent, action)
-                # If we are the last ghost, it's Pacman's turn on the next ply
-                if agent == gameState.getNumAgents() - 1:
-                    results.append(gameState, depth - 1, 0, alpha, beta)
-                else:
-                    results.append(gameState, depth, agent + 1, alpha, beta)
-            choice = None
-            for result in results:
-                # If we are Pacman, select the action with the highest score
-                if agent == 0:
-                    if choice == None or result.score > choice.score:
-                        choice = result
-                # Otherwise we are a ghost so select the lowest score
-                else:
-                    if choice == None or result.score < choice.score:
-                        choice = result
-            return choice
+                return self.evaluationFunction(gameState)
 
-        return alphaBetaTraversal(gameState, self.depth, 0, None, None).action
+            actions = gameState.getLegalActions(agent)
+            bestScore = None
+            # If we are Pacman, choose the highest score
+            if agent == 0:
+                for action in actions:
+                    childState = gameState.generateSuccessor(agent, action)
+                    childScore = alphaBetaTraversal(
+                            childState, depth, agent + 1, alpha, beta)
+                    if bestScore == None or childScore > bestScore:
+                        bestScore = childScore
+                    if bestScore > alpha:
+                        alpha = bestScore
+                    if beta < alpha:
+                        break
+            # If we are a ghost, choose the lowest score
+            else:
+                for action in actions:
+                    childState = gameState.generateSuccessor(agent, action)
+                    # If we are the last ghost then the next move is Pacman's
+                    if agent + 1 == gameState.getNumAgents():
+                        childScore = alphaBetaTraversal(
+                                childState, depth - 1, 0, alpha, beta)
+                    else:
+                        childScore = alphaBetaTraversal(
+                                childState, depth, agent + 1, alpha, beta)
+                    if bestScore == None or childScore < bestScore:
+                        bestScore = childScore
+                    if bestScore < beta:
+                        beta = bestScore
+                    if beta < alpha:
+                        break
+            return bestScore
+
+        # Return Pacman's best move
+        actions = gameState.getLegalActions(0)
+        bestScore = None
+        bestAction = None
+        alpha = float('-inf')
+        beta = float('inf')
+        for action in actions:
+            childState = gameState.generateSuccessor(0, action)
+            childScore = alphaBetaTraversal(
+                    childState, self.depth, 1, alpha, beta)
+            if bestScore == None or childScore > bestScore:
+                bestScore = childScore
+                bestAction = action
+            if bestScore > alpha:
+                alpha = bestScore
+            if beta < alpha:
+                break
+        return bestAction
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
