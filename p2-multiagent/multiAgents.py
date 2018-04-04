@@ -214,10 +214,8 @@ class MinimaxAgent(MultiAgentSearchAgent):
                     else:
                         scores.append(minimaxTraversal(next_state, depth, agent+1)[0])
                 lowest_score = min(scores)
-                for i in range(len(scores)):
-                    if scores[i] == lowest_score:
-                        action_index = i
-                return lowest_score, actions[action_index]
+
+                return lowest_score, None
 
         action = minimaxTraversal(gameState, self.depth, 0)[1]
         return action
@@ -302,8 +300,41 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
           All ghosts should be modeled as choosing uniformly at random from their
           legal moves.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        def expectimaxTraversal(gameState, depth, agent):
+            scores = []
+            if depth == 0 or gameState.isWin() or gameState.isLose():
+                return self.evaluationFunction(gameState), None
+
+            actions = gameState.getLegalActions(agent)
+            # If agent is 0 then we are picking the highest score, exactly as a max agent
+            if agent == 0:
+                for action in actions:
+                    next_state = gameState.generateSuccessor(agent, action)
+                    # get the scores that min chose so we can choose the highest of them
+                    scores.append(expectimaxTraversal(next_state, depth, agent+1)[0])
+                highest_score = max(scores)
+                for i in range(len(scores)):
+                    if scores[i] == highest_score:
+                        action_index = i
+                return highest_score, actions[action_index]
+            # If agent is not 0 then we are a ghost agent and we are calculating the average of all possible states
+            else:
+                for action in actions:
+                    next_state = gameState.generateSuccessor(agent, action)
+                    # if this is the last ghost we are calculating scores for, swap to max's turn
+                    if agent == gameState.getNumAgents() - 1:
+                        scores.append(expectimaxTraversal(next_state, depth - 1, 0)[0])
+                    # else we have more ghosts to calculate scores for
+                    else:
+                        scores.append(expectimaxTraversal(next_state, depth, agent+1)[0])
+                total = 0.0
+                for score in scores:
+                    total += score
+                avg = total / float(len(scores))
+                return avg, None
+
+        action = expectimaxTraversal(gameState, self.depth, 0)[1]
+        return action
 
 def betterEvaluationFunction(currentGameState):
     """
