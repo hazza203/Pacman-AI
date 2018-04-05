@@ -15,7 +15,6 @@
 from util import manhattanDistance
 from game import Directions
 import random, util, collections
-
 from game import Agent
 
 # Some functions used in the evaluationFunction:
@@ -25,7 +24,7 @@ def nearestFood(state):
     Returns the manhattan distance to the nearest food.
     Takes a GameState as argument.
     """
-    pacmanPos = state.getPacmanPosition();
+    pacmanPos = state.getPacmanPosition()
     dist = []
     for food in state.getFood().asList():
         dist.append(manhattanDistance(pacmanPos, food))
@@ -344,8 +343,87 @@ def betterEvaluationFunction(currentGameState):
       DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
 
+    score = currentGameState.getScore()
+    score = foodScore(currentGameState, score)
+    score = ghostScore(currentGameState, score)
+    return score
+
+def foodScore(currentGameState, score):
+    food_list = currentGameState.getFood().asList()
+    pacmanPos = currentGameState.getPacmanPosition()
+    currPos = pacmanPos
+    collectedFood = []
+    if len(food_list) == 0:
+        return score
+
+    """
+    while len(collectedFood) != len(food_list):
+        closest = 999999
+        for food in food_list:
+            if food in collectedFood:
+                continue
+            dist = manhattanDistance(currPos, food)
+            if dist < closest:
+                closest = dist
+                closest_food = food
+        score += closest
+        currPos = food
+        collectedFood.append(food)
+    """
+
+    if score > 0:
+        score = score / len(food_list)
+    else:
+        score = score * len(food_list)
+
+    dist = []
+    for food in food_list:
+        dist.append(manhattanDistance(pacmanPos, food))
+
+    if score > 0:
+        score = score / min(dist)
+    else:
+        score = score * min(dist)
+    return score
+
+
+def ghostScore(currentGameState, score):
+    pacmanPos = currentGameState.getPacmanPosition()
+
+    for ghost in currentGameState.getGhostStates():
+        dist = manhattanDistance(pacmanPos, ghost.getPosition())
+        if ghost.scaredTimer == 0:
+            if 3 >= dist > 1:
+                if score > 0:
+                    score = score / 2
+                else:
+                    score = score * 2
+            if dist <= 1:
+                if score > 0:
+                    score = score / 4
+                else:
+                    score = score * 4
+        else:
+            if ghost.scaredTimer > 0:
+                if dist == 0:
+                    if score > 0:
+                        score = score * 4
+                    else:
+                        score = score / 4
+                if dist == 1 and ghost.scaredTimer > 1:
+                    if score > 0:
+                        score = score * 2
+                    else:
+                        score = score / 2
+                if dist == 2 and ghost.scaredTimer > 2:
+                    if score > 0:
+                        score = score * 1.5
+                    else:
+                        score = score / 1.5
+
+
+    return score
 # Abbreviation
 better = betterEvaluationFunction
 
