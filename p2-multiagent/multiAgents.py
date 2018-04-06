@@ -340,90 +340,46 @@ def betterEvaluationFunction(currentGameState):
       Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
       evaluation function (question 5).
 
-      DESCRIPTION: <write something here so we know what you did>
+      DESCRIPTION: Calculate a linear combination of factors from:
+            * The score
+            * The reciprocal of the number of food pellets left
+            * The reciprocal of the distance to the nearest food
+            * The reciprocal of the distance to the nearest ghost if that ghost has
+              at least a second left on it's scared timer
+            * The distance to the nearest ghost if that ghost is deadly and within 3 moves
     """
     "*** YOUR CODE HERE ***"
 
     score = currentGameState.getScore()
-    score = foodScore(currentGameState, score)
-    score = ghostScore(currentGameState, score)
-    return score
-
-def foodScore(currentGameState, score):
-    food_list = currentGameState.getFood().asList()
+    foodList = currentGameState.getFood().asList()
+    foodCount = len(foodList) if len(foodList) > 0 else 1
     pacmanPos = currentGameState.getPacmanPosition()
-    currPos = pacmanPos
-    collectedFood = []
-    if len(food_list) == 0:
-        return score
+    distanceToFood = [manhattanDistance(pacmanPos, food) for food in foodList]
+    nearestFood = min(distanceToFood) if len(distanceToFood) > 0 else 1
+    ghosts = currentGameState.getGhostStates()
+    distanceToGhosts = [manhattanDistance(pacmanPos, ghost.getPosition()) for ghost in ghosts]
+    nearestGhost = min(distanceToGhosts)
+    scaredGhost = True if any([ghost.scaredTimer > 1 for ghost in ghosts]) else False
 
-    """
-    while len(collectedFood) != len(food_list):
-        closest = 999999
-        for food in food_list:
-            if food in collectedFood:
-                continue
-            dist = manhattanDistance(currPos, food)
-            if dist < closest:
-                closest = dist
-                closest_food = food
-        score += closest
-        currPos = food
-        collectedFood.append(food)
-    """
+    scoreFactor = 1.0
+    foodCountFactor = 100.0
+    nearestFoodFactor = 10.0
+    scaryGhostFactor = 1.0
+    scaredGhostFactor = 100.0
 
-    if score > 0:
-        score = score / len(food_list)
-    else:
-        score = score * len(food_list)
+    result = 0.0
 
-    dist = []
-    for food in food_list:
-        dist.append(manhattanDistance(pacmanPos, food))
+    result += scoreFactor * score
+    result += foodCountFactor / foodCount
+    result += nearestFoodFactor / nearestFood
+    # If the ghosts are scared go for them, otherwise if one is close run away
+    if scaredGhost:
+        result += scaredGhostFactor / nearestGhost
+    elif nearestGhost < 3:
+        result += scaryGhostFactor * nearestGhost
 
-    if score > 0:
-        score = score / min(dist)
-    else:
-        score = score * min(dist)
-    return score
+    return result
 
-
-def ghostScore(currentGameState, score):
-    pacmanPos = currentGameState.getPacmanPosition()
-
-    for ghost in currentGameState.getGhostStates():
-        dist = manhattanDistance(pacmanPos, ghost.getPosition())
-        if ghost.scaredTimer == 0:
-            if 3 >= dist > 1:
-                if score > 0:
-                    score = score / 2
-                else:
-                    score = score * 2
-            if dist <= 1:
-                if score > 0:
-                    score = score / 4
-                else:
-                    score = score * 4
-        else:
-            if ghost.scaredTimer > 0:
-                if dist == 0:
-                    if score > 0:
-                        score = score * 4
-                    else:
-                        score = score / 4
-                if dist == 1 and ghost.scaredTimer > 1:
-                    if score > 0:
-                        score = score * 2
-                    else:
-                        score = score / 2
-                if dist == 2 and ghost.scaredTimer > 2:
-                    if score > 0:
-                        score = score * 1.5
-                    else:
-                        score = score / 1.5
-
-
-    return score
 # Abbreviation
 better = betterEvaluationFunction
 
