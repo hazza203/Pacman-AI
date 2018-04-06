@@ -14,8 +14,7 @@
 
 from util import manhattanDistance
 from game import Directions
-import random, util
-
+import random, util, collections
 from game import Agent
 
 # Some functions used in the evaluationFunction:
@@ -25,7 +24,7 @@ def nearestFood(state):
     Returns the manhattan distance to the nearest food.
     Takes a GameState as argument.
     """
-    pacmanPos = state.getPacmanPosition();
+    pacmanPos = state.getPacmanPosition()
     dist = []
     for food in state.getFood().asList():
         dist.append(manhattanDistance(pacmanPos, food))
@@ -214,10 +213,8 @@ class MinimaxAgent(MultiAgentSearchAgent):
                     else:
                         scores.append(minimaxTraversal(next_state, depth, agent+1)[0])
                 lowest_score = min(scores)
-                for i in range(len(scores)):
-                    if scores[i] == lowest_score:
-                        action_index = i
-                return lowest_score, actions[action_index]
+
+                return lowest_score, None
 
         action = minimaxTraversal(gameState, self.depth, 0)[1]
         return action
@@ -233,7 +230,62 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        def alphaBetaTraversal(gameState, depth, agent, alpha, beta):
+            if depth == 0 or gameState.isWin() or gameState.isLose():
+                return self.evaluationFunction(gameState)
+
+            actions = gameState.getLegalActions(agent)
+            bestScore = None
+            # If we are Pacman, choose the highest score
+            if agent == 0:
+                for action in actions:
+                    childState = gameState.generateSuccessor(agent, action)
+                    childScore = alphaBetaTraversal(
+                            childState, depth, agent + 1, alpha, beta)
+                    if bestScore == None or childScore > bestScore:
+                        bestScore = childScore
+                    if bestScore > alpha:
+                        alpha = bestScore
+                    if beta < alpha:
+                        break
+            # If we are a ghost, choose the lowest score
+            else:
+                for action in actions:
+                    childState = gameState.generateSuccessor(agent, action)
+                    # If we are the last ghost then the next move is Pacman's
+                    if agent + 1 == gameState.getNumAgents():
+                        childScore = alphaBetaTraversal(
+                                childState, depth - 1, 0, alpha, beta)
+                    else:
+                        childScore = alphaBetaTraversal(
+                                childState, depth, agent + 1, alpha, beta)
+                    if bestScore == None or childScore < bestScore:
+                        bestScore = childScore
+                    if bestScore < beta:
+                        beta = bestScore
+                    if beta < alpha:
+                        break
+            return bestScore
+
+        # Return Pacman's best move
+        actions = gameState.getLegalActions(0)
+        bestScore = None
+        bestAction = None
+        alpha = float('-inf')
+        beta = float('inf')
+        for action in actions:
+            childState = gameState.generateSuccessor(0, action)
+            childScore = alphaBetaTraversal(
+                    childState, self.depth, 1, alpha, beta)
+            if bestScore == None or childScore > bestScore:
+                bestScore = childScore
+                bestAction = action
+            if bestScore > alpha:
+                alpha = bestScore
+            if beta < alpha:
+                break
+        return bestAction
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -247,8 +299,41 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
           All ghosts should be modeled as choosing uniformly at random from their
           legal moves.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        def expectimaxTraversal(gameState, depth, agent):
+            scores = []
+            if depth == 0 or gameState.isWin() or gameState.isLose():
+                return self.evaluationFunction(gameState), None
+
+            actions = gameState.getLegalActions(agent)
+            # If agent is 0 then we are picking the highest score, exactly as a max agent
+            if agent == 0:
+                for action in actions:
+                    next_state = gameState.generateSuccessor(agent, action)
+                    # get the scores that min chose so we can choose the highest of them
+                    scores.append(expectimaxTraversal(next_state, depth, agent+1)[0])
+                highest_score = max(scores)
+                for i in range(len(scores)):
+                    if scores[i] == highest_score:
+                        action_index = i
+                return highest_score, actions[action_index]
+            # If agent is not 0 then we are a ghost agent and we are calculating the average of all possible states
+            else:
+                for action in actions:
+                    next_state = gameState.generateSuccessor(agent, action)
+                    # if this is the last ghost we are calculating scores for, swap to max's turn
+                    if agent == gameState.getNumAgents() - 1:
+                        scores.append(expectimaxTraversal(next_state, depth - 1, 0)[0])
+                    # else we have more ghosts to calculate scores for
+                    else:
+                        scores.append(expectimaxTraversal(next_state, depth, agent+1)[0])
+                total = 0.0
+                for score in scores:
+                    total += score
+                avg = total / float(len(scores))
+                return avg, None
+
+        action = expectimaxTraversal(gameState, self.depth, 0)[1]
+        return action
 
 def betterEvaluationFunction(currentGameState):
     """
@@ -258,8 +343,87 @@ def betterEvaluationFunction(currentGameState):
       DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
 
+    score = currentGameState.getScore()
+    score = foodScore(currentGameState, score)
+    score = ghostScore(currentGameState, score)
+    return score
+
+def foodScore(currentGameState, score):
+    food_list = currentGameState.getFood().asList()
+    pacmanPos = currentGameState.getPacmanPosition()
+    currPos = pacmanPos
+    collectedFood = []
+    if len(food_list) == 0:
+        return score
+
+    """
+    while len(collectedFood) != len(food_list):
+        closest = 999999
+        for food in food_list:
+            if food in collectedFood:
+                continue
+            dist = manhattanDistance(currPos, food)
+            if dist < closest:
+                closest = dist
+                closest_food = food
+        score += closest
+        currPos = food
+        collectedFood.append(food)
+    """
+
+    if score > 0:
+        score = score / len(food_list)
+    else:
+        score = score * len(food_list)
+
+    dist = []
+    for food in food_list:
+        dist.append(manhattanDistance(pacmanPos, food))
+
+    if score > 0:
+        score = score / min(dist)
+    else:
+        score = score * min(dist)
+    return score
+
+
+def ghostScore(currentGameState, score):
+    pacmanPos = currentGameState.getPacmanPosition()
+
+    for ghost in currentGameState.getGhostStates():
+        dist = manhattanDistance(pacmanPos, ghost.getPosition())
+        if ghost.scaredTimer == 0:
+            if 3 >= dist > 1:
+                if score > 0:
+                    score = score / 2
+                else:
+                    score = score * 2
+            if dist <= 1:
+                if score > 0:
+                    score = score / 4
+                else:
+                    score = score * 4
+        else:
+            if ghost.scaredTimer > 0:
+                if dist == 0:
+                    if score > 0:
+                        score = score * 4
+                    else:
+                        score = score / 4
+                if dist == 1 and ghost.scaredTimer > 1:
+                    if score > 0:
+                        score = score * 2
+                    else:
+                        score = score / 2
+                if dist == 2 and ghost.scaredTimer > 2:
+                    if score > 0:
+                        score = score * 1.5
+                    else:
+                        score = score / 1.5
+
+
+    return score
 # Abbreviation
 better = betterEvaluationFunction
 
