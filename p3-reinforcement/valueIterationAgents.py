@@ -45,9 +45,11 @@ class ValueIterationAgent(ValueEstimationAgent):
 
         # Write value iteration code here
         "*** YOUR CODE HERE ***"
+        # Lecture 8, page 33
         while iterations > 0:
             newvalues = util.Counter()
             for state in mdp.getStates():
+                # possvalues: the value of the next state for each possible action
                 possvalues = []
                 for action in mdp.getPossibleActions(state):
                     value = 0
@@ -55,6 +57,7 @@ class ValueIterationAgent(ValueEstimationAgent):
                         value += prob * (mdp.getReward(state, action, nextState)
                                 + discount * self.values[nextState])
                     possvalues.append(value)
+                # if we did not get any possvalues then we leave the value as 0
                 if (len(possvalues) > 0):
                     newvalues[state] = max(possvalues)
             self.values = newvalues
@@ -73,6 +76,7 @@ class ValueIterationAgent(ValueEstimationAgent):
           value function stored in self.values.
         """
         "*** YOUR CODE HERE ***"
+        # Lecture 8, page 33
         value = 0
         for (nextState, prob) in self.mdp.getTransitionStatesAndProbs(state, action):
             value += prob * (self.mdp.getReward(state, action, nextState)
@@ -91,9 +95,11 @@ class ValueIterationAgent(ValueEstimationAgent):
         "*** YOUR CODE HERE ***"
         if self.mdp.isTerminal(state):
             return None
+        # Lecture 7, page 33
         bestValue = None
         bestAction = None
         for action in self.mdp.getPossibleActions(state):
+            # value: the expected utility of this action
             value = 0
             for (nextState, prob) in self.mdp.getTransitionStatesAndProbs(state, action):
                 value += prob * self.values[nextState]
