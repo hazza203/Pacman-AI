@@ -90,10 +90,11 @@ class ValueIterationAgent(ValueEstimationAgent):
         for action in self.mdp.getPossibleActions(state):
             valuesum = 0
             for T in self.mdp.getTransitionStatesAndProbs(state, action):
-                valuesum += T[1] + self.values[T[0]]
+                valuesum += T[1] * self.values[T[0]]
             rewards.append((action, valuesum))
         if len(rewards) > 0:
             action = max(rewards, key=operator.itemgetter(1))[0]
+
         return action
 
     def getPolicy(self, state):
