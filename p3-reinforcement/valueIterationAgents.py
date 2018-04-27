@@ -92,6 +92,7 @@ class ValueIterationAgent(ValueEstimationAgent):
         if self.mdp.isTerminal(state):
             return None
         bestValue = None
+        bestAction = None
         for action in self.mdp.getPossibleActions(state):
             value = 0
             for (nextState, prob) in self.mdp.getTransitionStatesAndProbs(state, action):
