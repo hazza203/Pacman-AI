@@ -13,6 +13,7 @@
 
 
 import mdp, util
+import operator
 
 from learningAgents import ValueEstimationAgent
 
@@ -43,8 +44,18 @@ class ValueIterationAgent(ValueEstimationAgent):
         self.iterations = iterations
         self.values = util.Counter() # A Counter is a dict with default 0
 
-        # Write value iteration code here
-        "*** YOUR CODE HERE ***"
+        for x in range(0, iterations):
+            newvalues = util.Counter()
+            for state in mdp.getStates():
+                rewards = list()
+                for action in mdp.getPossibleActions(state):
+                    t_values = 0
+                    for T in mdp.getTransitionStatesAndProbs(state, action):
+                        t_values += (T[1] * (mdp.getReward(state, action, T[0]) + discount*self.values[T[0]]))
+                    rewards.append(t_values)
+                if len(rewards) > 0:
+                    newvalues[state] = max(rewards)
+            self.values = newvalues
 
 
     def getValue(self, state):
