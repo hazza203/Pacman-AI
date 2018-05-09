@@ -171,16 +171,18 @@ class DefensiveAgent(CaptureAgent):
 
     actions = gameState.getLegalActions(self.index)
     best_action = None
-    min = 9999
-    enemy_dists = gameState.getAgentDistances()
-    for enemy in enemy_dists:
-        if enemy < 8:
+    opps = self.getOpponents(gameState)
+    for opp in opps:
+        opp_pos = gameState.getAgentPosition(opp)
+        if opp_pos is not None:
+            print opp_pos
+            dist = util.manhattanDistance(gameState.getAgentPosition(self.index), opp_pos)
             for action in actions:
                 nextState = gameState.generateSuccessor(self.index, action)
-                new_dists = gameState.getAgentDistances()
-                for new_enemy in new_dists:
-                    if new_enemy < enemy:
-                       best_action = action
+                new_dist = util.manhattanDistance(nextState.getAgentPosition(self.index), opp_pos)
+                if new_dist < dist:
+                    best_action = action
+
     if best_action is not None:
       return best_action
 
