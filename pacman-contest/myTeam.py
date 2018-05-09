@@ -173,12 +173,16 @@ class DefensiveAgent(CaptureAgent):
     best_action = None
     min = 9999
     enemy_dists = gameState.getAgentDistances()
-    print enemy_dists
     for enemy in enemy_dists:
-        if enemy < 5:
+        if enemy < 8:
             for action in actions:
                 nextState = gameState.generateSuccessor(self.index, action)
-                enemy_dists.
+                new_dists = gameState.getAgentDistances()
+                for new_enemy in new_dists:
+                    if new_enemy < enemy:
+                       best_action = action
+    if best_action is not None:
+      return best_action
 
     if not self.at_center:
         self.at_center = True if gameState.getAgentPosition(self.index) == self.coordinates['center'] else False
