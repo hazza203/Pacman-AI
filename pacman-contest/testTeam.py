@@ -125,12 +125,15 @@ class TestAgent(CaptureAgent):
 
   def getDistributions(self, gameState):
     selfPos = gameState.getAgentPosition(self.index)
+    opps = self.getOpponents(gameState)
+    fuzzyDists = gameState.getAgentDistances()
     walls = gameState.getWalls()
     width = walls.width
     height = walls.height
     distribs = []
     numover = 0
-    for fuzzyDist in gameState.getAgentDistances():
+    for opp in opps:
+      fuzzyDist = fuzzyDists[opp]
       print fuzzyDist
       distrib = util.Counter()
       for x in range(width):
@@ -157,7 +160,7 @@ class TestAgent(CaptureAgent):
     walls = gameState.getWalls()
     width = walls.width
     height = walls.height
-    if len(self.distribs) == 6:
+    if len(self.distribs) == 3:
       self.distribs = self.distribs[1:]
 
     for distrib in self.distribs:
@@ -176,7 +179,7 @@ class TestAgent(CaptureAgent):
         for x in range(width):
           for y in range(height):
             pos = (x, y)
-            distrib[pos] = distrib[pos] / 6
+            distrib[pos] = distrib[pos] / 3
             if distrib[pos] > 0.076:
                 numover += 1
 
