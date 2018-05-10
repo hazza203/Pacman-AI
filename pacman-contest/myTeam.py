@@ -72,7 +72,11 @@ class OffensiveAgent(CaptureAgent):
         self.distances = dict()
         self.scaredTimer = 40
         self.scary = False
+        self.collected_food = 0
         self.coordinates = dict()
+        self.at_center = False
+        self.at_top = False
+        self.at_bottom = False
 
     def registerInitialState(self, gameState):
         """
@@ -94,7 +98,25 @@ class OffensiveAgent(CaptureAgent):
             if wall[1] == 0:
                 width += 1
 
+        self.coordinates['halfway'] = width / 2
+        width = (width / 2) - 4 if gameState.isOnRedTeam(self.index) else (width / 2) + 4
+
         self.coordinates['width'] = width
+        self.coordinates['center'] = width, self.coordinates['height'] / 2
+        self.coordinates['top_center'] = width, self.coordinates['center'][1] + self.coordinates['height'] / 3
+        self.coordinates['bottom_center'] = width, self.coordinates['center'][1] - self.coordinates['height'] / 3
+
+        while gameState.hasWall(self.coordinates['center'][0], self.coordinates['center'][1]):
+            width = width - 1 if gameState.isOnRedTeam(self.index) else width + 1
+            self.coordinates['center'] = width, self.coordinates['height'] / 2
+
+        while gameState.hasWall(self.coordinates['top_center'][0], self.coordinates['top_center'][1]):
+            width = width - 1 if gameState.isOnRedTeam(self.index) else width + 1
+            self.coordinates['top_center'] = width, self.coordinates['center'][1] + self.coordinates['height'] / 3
+
+        while gameState.hasWall(self.coordinates['bottom_center'][0], self.coordinates['bottom_center'][1]):
+            width = width - 1 if gameState.isOnRedTeam(self.index) else width + 1
+            self.coordinates['bottom_center'] = width, self.coordinates['center'][1] - self.coordinates['height'] / 3
 
         '''
     Make sure you do not delete the following line. If you would like to
@@ -110,20 +132,60 @@ class OffensiveAgent(CaptureAgent):
 
     def chooseAction(self, gameState):
 
-        closest_opp, dist = getClosestOpp(self, gameState)
+        if self.getScore(gameState) <= 0 and self.collected_food == 0:
+            if self.getScore(gameState) > 0:
+                self.collected_food = 0
+            return self.getActionToFood(gameState)
+        else:
+            actions = gameState.getLegalActions(self.index)
+            best_action = None
+            opps = self.getOpponents(gameState)
+            for opp in opps:
+                opp_pos = gameState.getAgentPosition(opp)
+                if opp_pos is not None:
+                    if not gameState.getAgentState(opp).isPacman:
+                        return Directions.STOP
+                    dist = self.getMazeDistance(gameState.getAgentPosition(self.index), opp_pos)
+                    for action in actions:
+                        nextState = gameState.generateSuccessor(self.index, action)
+                        new_dist = self.getMazeDistance(nextState.getAgentPosition(self.index), opp_pos)
+                        if new_dist < dist:
+                            if gameState.getAgentState(self.index).isPacman:
+                                continue
+                            best_action = action
 
-        if closest_opp is not None and dist < 3:
-            if self.scary:
-                action = self.getActionIfScary(gameState, closest_opp, dist)
-                if action is not None:
-                    return action
+            if best_action is not None:
+                return best_action
+
+            if not self.at_center:
+                best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['center'])
+                nextState = gameState.generateSuccessor(self.index, best_action)
+                if nextState.getAgentPosition(self.index) == self.coordinates['center']:
+                    self.at_center = True
+                    self.at_bottom = False
+                return best_action if best_action is not None else random.choice(actions)
+
             else:
-                action = self.getActionIfScared(gameState, closest_opp, dist)
-                if action is not None:
-                    return action
+                best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['bottom_center'])
+                nextState = gameState.generateSuccessor(self.index, best_action)
+                if nextState.getAgentPosition(self.index) == self.coordinates['bottom_center']:
+                    self.at_center = False
+                    self.at_bottom = True
+                return best_action if best_action is not None else random.choice(actions)
 
-        action = self.getActionToFood(gameState)
-        return self.goHome(gameState) if action is None else action
+            return random.choice(actions)
+
+
+    def get_best_action_for_pos(self, gameState, actions, pos):
+        min = 9999
+        best_action = None
+        for action in actions:
+            nextState = gameState.generateSuccessor(self.index, action)
+            dist = self.getMazeDistance(nextState.getAgentPosition(self.index), pos)
+            if dist < min:
+                min = dist
+                best_action = action
+        return best_action
 
     def getActionToFood(self, gameState):
         actions = gameState.getLegalActions(self.index)
@@ -136,6 +198,9 @@ class OffensiveAgent(CaptureAgent):
             next_state = gameState.generateSuccessor(self.index, action)
             new_dist = self.getMazeDistance(next_state.getAgentPosition(self.index), food_pos)
             if new_dist < food_dist:
+                if next_state.getAgentPosition(self.index) == food_pos:
+                    self.collected_food = 1
+                    print "BLAH", self.collected_food
                 return action
 
     def getActionIfScary(self, gameState, closest_opp, dist):
@@ -313,6 +378,8 @@ class DefensiveAgent(CaptureAgent):
         for opp in opps:
             opp_pos = gameState.getAgentPosition(opp)
             if opp_pos is not None:
+                if not gameState.getAgentState(opp).isPacman:
+                    return Directions.STOP
                 dist = self.getMazeDistance(gameState.getAgentPosition(self.index), opp_pos)
                 for action in actions:
                     nextState = gameState.generateSuccessor(self.index, action)
@@ -325,26 +392,43 @@ class DefensiveAgent(CaptureAgent):
         if best_action is not None:
             return best_action
 
-        if not self.at_center:
-            self.at_center = True if gameState.getAgentPosition(self.index) == self.coordinates['center'] else False
-            best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['center'])
-            return best_action if best_action is not None else random.choice(actions)
+        if self.getScore(gameState) <= 0:
+            if not self.at_center:
+                self.at_center = True if gameState.getAgentPosition(self.index) == self.coordinates['center'] else False
+                best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['center'])
+                return best_action if best_action is not None else random.choice(actions)
 
-        elif not self.at_top:
-            best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['top_center'])
-            nextState = gameState.generateSuccessor(self.index, best_action)
-            if nextState.getAgentPosition(self.index) == self.coordinates['top_center']:
-                self.at_top = True
-                self.at_bottom = False
-            return best_action if best_action is not None else random.choice(actions)
+            elif not self.at_top:
+                best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['top_center'])
+                nextState = gameState.generateSuccessor(self.index, best_action)
+                if nextState.getAgentPosition(self.index) == self.coordinates['top_center']:
+                    self.at_top = True
+                    self.at_bottom = False
+                return best_action if best_action is not None else random.choice(actions)
 
-        elif not self.at_bottom:
-            best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['bottom_center'])
-            nextState = gameState.generateSuccessor(self.index, best_action)
-            if nextState.getAgentPosition(self.index) == self.coordinates['bottom_center']:
-                self.at_top = False
-                self.at_bottom = True
-            return best_action if best_action is not None else random.choice(actions)
+            elif not self.at_bottom:
+                best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['bottom_center'])
+                nextState = gameState.generateSuccessor(self.index, best_action)
+                if nextState.getAgentPosition(self.index) == self.coordinates['bottom_center']:
+                    self.at_top = False
+                    self.at_bottom = True
+                return best_action if best_action is not None else random.choice(actions)
+        else:
+            if not self.at_center:
+                best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['center'])
+                nextState = gameState.generateSuccessor(self.index, best_action)
+                if nextState.getAgentPosition(self.index) == self.coordinates['center']:
+                    self.at_center = True
+                    self.at_top = False
+                return best_action if best_action is not None else random.choice(actions)
+
+            else:
+                best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['top_center'])
+                nextState = gameState.generateSuccessor(self.index, best_action)
+                if nextState.getAgentPosition(self.index) == self.coordinates['top_center']:
+                    self.at_top = True
+                    self.at_center = False
+                return best_action if best_action is not None else random.choice(actions)
 
         return random.choice(actions)
 
@@ -379,7 +463,6 @@ class DefensiveAgent(CaptureAgent):
             for x in range(len(self.noisyDists[opp]) - 1, -1, -1):
                 total += gamma * self.noisyDists[opp][x]
                 gamma = gamma * gamma
-            print("noisy avg", total)
 
     def get_best_action_for_pos(self, gameState, actions, pos):
         min = 9999
