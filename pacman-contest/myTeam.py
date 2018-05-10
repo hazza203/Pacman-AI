@@ -90,7 +90,7 @@ class OffensiveAgent(CaptureAgent):
 
     IMPORTANT: This method may run for at most 15 seconds.
     """
-
+        self.coordinates['initial'] = gameState.getAgentPosition(self.index)
         self.coordinates['height'] = len(gameState.getWalls()[0])
 
         width = 0
@@ -131,13 +131,16 @@ class OffensiveAgent(CaptureAgent):
     '''
 
     def chooseAction(self, gameState):
+        actions = gameState.getLegalActions(self.index)
+
+        if gameState.getAgentPosition(self.index) == self.coordinates['initial']:
+            self.collected_food = 0
 
         if self.getScore(gameState) <= 0 and self.collected_food == 0:
             if self.getScore(gameState) > 0:
                 self.collected_food = 0
             return self.getActionToFood(gameState)
-        else:
-            actions = gameState.getLegalActions(self.index)
+        elif not gameState.getAgentState(self.index).isPacman:
             best_action = None
             opps = self.getOpponents(gameState)
             for opp in opps:
@@ -153,27 +156,26 @@ class OffensiveAgent(CaptureAgent):
                             if gameState.getAgentState(self.index).isPacman:
                                 continue
                             best_action = action
-
             if best_action is not None:
                 return best_action
 
-            if not self.at_center:
-                best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['center'])
-                nextState = gameState.generateSuccessor(self.index, best_action)
-                if nextState.getAgentPosition(self.index) == self.coordinates['center']:
-                    self.at_center = True
-                    self.at_bottom = False
-                return best_action if best_action is not None else random.choice(actions)
+        if not self.at_center:
+            best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['center'])
+            nextState = gameState.generateSuccessor(self.index, best_action)
+            if nextState.getAgentPosition(self.index) == self.coordinates['center']:
+                self.at_center = True
+                self.at_bottom = False
+            return best_action if best_action is not None else random.choice(actions)
 
-            else:
-                best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['bottom_center'])
-                nextState = gameState.generateSuccessor(self.index, best_action)
-                if nextState.getAgentPosition(self.index) == self.coordinates['bottom_center']:
-                    self.at_center = False
-                    self.at_bottom = True
-                return best_action if best_action is not None else random.choice(actions)
+        else:
+            best_action = self.get_best_action_for_pos(gameState, actions, self.coordinates['bottom_center'])
+            nextState = gameState.generateSuccessor(self.index, best_action)
+            if nextState.getAgentPosition(self.index) == self.coordinates['bottom_center']:
+                self.at_center = False
+                self.at_bottom = True
+            return best_action if best_action is not None else random.choice(actions)
 
-            return random.choice(actions)
+        return random.choice(actions)
 
 
     def get_best_action_for_pos(self, gameState, actions, pos):
