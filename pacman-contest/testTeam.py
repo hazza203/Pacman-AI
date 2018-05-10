@@ -207,7 +207,6 @@ class TestAgent(CaptureAgent):
 
     print 'fuzzy readings: ', gameState.getAgentDistances()
     print 'unique probs: ', set(dists[1].values())
-    util.pause()
     return random.choice(bestActions)
 
 # vi: sw=2
