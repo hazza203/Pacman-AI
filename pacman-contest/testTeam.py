@@ -76,6 +76,22 @@ class TestAgent(CaptureAgent):
     '''
     Your initialization code goes here, if you need any.
     '''
+    # beliefs: a list of beliefs about each agent's position indexed
+    # by agent index
+    # Each element is a Counter of probabilities with board coordinates
+    # as the key
+    width = gameState.getWalls().width
+    height = gameState.getWalls().height
+    initProb = 1.0 / (width * height)
+    self.beliefs = []
+    for agent in range(gameState.getNumAgents()):
+      self.beliefs.append(util.Counter())
+      for x in range(width):
+        for y in range(height):
+          if gameState.hasWall(x, y):
+            self.beliefs[agent][(x,y)] = 0.0
+          else:
+            self.beliefs[agent][(x,y)] = initProb
 
   def nearestOpponent(self, gameState):
     "Returns the fuzzy distance to the nearest opponent"
@@ -120,22 +136,83 @@ class TestAgent(CaptureAgent):
   def getWeights(self, gameState, action):
     return {'nearestOpponent': -1.0}
 
-  def getDistributions(self, gameState):
-    selfPos = gameState.getAgentPosition(self.index)
-    walls = gameState.getWalls()
-    width = walls.width
-    height = walls.height
-    distribs = []
-    for fuzzyDist in gameState.getAgentDistances():
-      distrib = util.Counter()
-      for x in range(width):
-        for y in range(height):
-          pos = (x, y)
-          distance = util.manhattanDistance(selfPos, pos)
-          prob = gameState.getDistanceProb(distance, fuzzyDist)
-          distrib[pos] = prob
-      distribs.append(distrib)
-    return distribs
+  def getAdjacentPositions(self, gameState, pos):
+    '''
+    Returns a list of adjacent positions (including the same position)
+    May be less than 5 if the position is by the edge or a wall
+    '''
+    width = gameState.getWalls().width
+    height = gameState.getWalls().height
+    ret = [pos]
+    x = pos[0] - 1
+    y = pos[1]
+    if x >= 0 and not gameState.hasWall(x, y):
+      ret.append((x, y))
+    x = pos[0] + 1
+    y = pos[1]
+    if x < width and not gameState.hasWall(x, y):
+      ret.append((x, y))
+    x = pos[0]
+    y = pos[1] - 1
+    if y >= 0 and not gameState.hasWall(x, y):
+      ret.append((x, y))
+    x = pos[0]
+    y = pos[1] + 1
+    if y < height and not gameState.hasWall(x, y):
+      ret.append((x, y))
+    return ret
+
+  def updateBeliefs(self, gameState):
+    '''
+    Update the probabilities of each agent being in each position
+    using Bayesian Inference
+    '''
+    thisAgentPos = gameState.getAgentPosition(self.index)
+    fuzzyReadings = gameState.getAgentDistances()
+    for agent in range(gameState.getNumAgents()):
+      # The agent may have moved!
+      # For each position we marginalise over the positions the agent may
+      # have been last turn
+      # Assuming the agent is moving randomly the probability of making a particular
+      # move is 1/(number of adjacent positions)
+      # (The agent may remain stationary so the same position is considered adjacent)
+      newBelief = util.Counter()
+      for pos in self.beliefs[agent].keys():
+        # The agents can't move into walls
+        if gameState.hasWall(pos[0], pos[1]):
+          continue
+        adjPositions = self.getAdjacentPositions(gameState, pos)
+        prob = 1.0 / len(adjPositions)
+        newBelief[pos] = self.beliefs[agent][pos] * prob
+        for adj in adjPositions:
+          newBelief[pos] += self.beliefs[agent][adj] * prob
+      self.beliefs[agent] = newBelief
+      # PofE: the marginal probability of getting this fuzzy reading
+      # (E for 'Evidence')
+      # We get this by marginalising over the probability of getting
+      # the reading for each position
+      # i.e. where E is the reading and Xn is the position:
+      # P(E) = P(E|X1)P(X1) + P(E|X2)P(X2) + ...
+      # This is the denominator in Baye's rule
+      PofE = 0
+      for pos in self.beliefs[agent].keys():
+        trueDist = util.manhattanDistance(thisAgentPos, pos)
+        # PofEgivenPos: the probability we would get this reading
+        # given the agent is in this position, i.e.:
+        # P(E|X)
+        PofEgivenPos = gameState.getDistanceProb(trueDist, fuzzyReadings[agent])
+        PofE += PofEgivenPos * self.beliefs[agent][pos]
+
+      # Avoid division by zero
+      if not PofE:
+        PofE = 0.001
+
+      # Now we update with Baye's rule:
+      # P(X|E) = (P(E|X) * P(X)) / P(E)
+      for pos in self.beliefs[agent].keys():
+        trueDist = util.manhattanDistance(thisAgentPos, pos)
+        PofEgivenPos = gameState.getDistanceProb(trueDist, fuzzyReadings[agent])
+        self.beliefs[agent][pos] = (PofEgivenPos * self.beliefs[agent][pos]) / PofE
 
   def chooseAction(self, gameState):
     actions = gameState.getLegalActions(self.index)
@@ -143,21 +220,9 @@ class TestAgent(CaptureAgent):
     maxValue = max(values)
     bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 
-    dists = self.getDistributions(gameState)
-    #self.displayDistributionsOverPositions(dists)
-    #self.displayDistributionsOverPositions([None, dists[1], None, None])
-    testMap = util.Counter()
-    walls = gameState.getWalls()
-    width = walls.width
-    height = walls.height
-    for x in range(width):
-      for y in range(height):
-        testMap[(x,y)] = float(x) / width
-    self.displayDistributionsOverPositions([testMap])
+    self.updateBeliefs(gameState)
+    self.displayDistributionsOverPositions(self.beliefs)
 
-    print 'fuzzy readings: ', gameState.getAgentDistances()
-    print 'unique probs: ', set(dists[1].values())
-    util.pause()
     return random.choice(bestActions)
 
 # vi: sw=2
