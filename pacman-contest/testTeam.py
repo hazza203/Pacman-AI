@@ -94,9 +94,28 @@ class TestAgent(CaptureAgent):
             self.beliefs[agent][(x,y)] = initProb
 
   def nearestOpponent(self, gameState):
-    "Returns the fuzzy distance to the nearest opponent"
-    return min([gameState.getAgentDistances()[opp]
-      for opp in self.getOpponents(gameState)])
+    '''
+    If we can see an opponent, this will return the maze distance to that
+    agent, otherwise it will return the maze distance to where we think the
+    nearest opponent might be
+    '''
+    selfPos = gameState.getAgentPosition(self.index)
+    if self.canSeeOpponent(gameState):
+      positions = [gameState.getAgentPosition(opp) for opp in self.getOpponents(gameState)]
+    else:
+      positions = [self.bestGuess(opp) for opp in self.getOpponents(gameState)]
+    nearestPos = None
+    minDist = 9999
+    for pos in positions:
+      if not pos:
+        continue
+      dist = self.getMazeDistance(selfPos, pos)
+      if dist < minDist:
+        minDist = dist
+        nearestPos = pos
+    self.debugClear()
+    self.debugDraw(nearestPos, [1.0, 0, 0])
+    return minDist
 
   def canSeeOpponent(self, gameState):
     "Returns True if there is an opponent in sight"
@@ -105,23 +124,8 @@ class TestAgent(CaptureAgent):
         return True
     return False
 
-  def nearestVisibleOpponent(self, gameState):
-    '''
-    Returns the position of the nearest opponent
-    or None if none are visible
-    '''
-    # a list of opponent positions, if they are visible
-    opps = [gameState.getAgentPosition(opp)
-        for opp in self.getOpponents(gameState)
-        if gameState.getAgentPosition(opp)]
-    mindist = 9999
-    nearest = None
-    for opp in opps:
-      dist = util.manhattanDistance(gameState.getAgentPosition(self.index), opp)
-      if dist < mindist:
-        mindist = dist
-        nearest = opp
-    return nearest
+    self.updateBeliefs(gameState)
+    self.displayDistributionsOverPositions(self.beliefs)
 
   def evaluate(self, gameState, action):
     features = self.getFeatures(gameState, action)
@@ -130,11 +134,21 @@ class TestAgent(CaptureAgent):
 
   def getFeatures(self, gameState, action):
     features = util.Counter()
-    features['nearestOpponent'] = self.nearestOpponent(gameState)
+    nextState = gameState.generateSuccessor(self.index, action)
+    features['score'] = self.getScore(nextState)
+    features['nearestOpponent'] = self.nearestOpponent(nextState)
+    if nextState.getAgentState(self.index).isPacman:
+      features['isDefending'] = 0
+    else:
+      features['isDefending'] = 1
     return features
 
   def getWeights(self, gameState, action):
-    return {'nearestOpponent': -1.0}
+    return {
+        'score': 1.0,
+        'nearestOpponent': -10.0,
+        'isDefending': 100
+        }
 
   def getAdjacentPositions(self, gameState, pos):
     '''
@@ -202,11 +216,9 @@ class TestAgent(CaptureAgent):
         # P(E|X)
         PofEgivenPos = gameState.getDistanceProb(trueDist, fuzzyReadings[agent])
         PofE += PofEgivenPos * self.beliefs[agent][pos]
-
       # Avoid division by zero
       if not PofE:
         PofE = 0.001
-
       # Now we update with Baye's rule:
       # P(X|E) = (P(E|X) * P(X)) / P(E)
       for pos in self.beliefs[agent].keys():
@@ -214,15 +226,30 @@ class TestAgent(CaptureAgent):
         PofEgivenPos = gameState.getDistanceProb(trueDist, fuzzyReadings[agent])
         self.beliefs[agent][pos] = (PofEgivenPos * self.beliefs[agent][pos]) / PofE
 
+  def bestGuess(self, agent):
+    '''
+    Returns where the given agent most likely is
+    '''
+    topProb = max(self.beliefs[agent].values())
+    locs = [loc for (loc, prob) in self.beliefs[agent].items() if prob == topProb]
+    ret = random.choice(locs)
+    return ret
+
   def chooseAction(self, gameState):
+    self.updateBeliefs(gameState)
+    self.displayDistributionsOverPositions(self.beliefs)
+
     actions = gameState.getLegalActions(self.index)
     values = [self.evaluate(gameState, a) for a in actions]
     maxValue = max(values)
     bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 
-    self.updateBeliefs(gameState)
-    self.displayDistributionsOverPositions(self.beliefs)
+    choice = random.choice(bestActions)
+    print 'evaluations:'
+    for (a, v) in zip(actions, values):
+      print a, ': ', v
+    print 'choosing ', choice
 
-    return random.choice(bestActions)
+    return choice
 
 # vi: sw=2
