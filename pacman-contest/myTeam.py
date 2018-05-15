@@ -21,16 +21,16 @@ import game
 
 def getClosestOpp(agent, gameState):
   closest_dist = 99999
-    closest_pos = None
-    opps = agent.getOpponents(gameState)
-    for opp in opps:
-      opp_pos = gameState.getAgentPosition(opp)
-        if opp_pos is not None:
-          dist = agent.getMazeDistance(gameState.getAgentPosition(agent.index), opp_pos)
-            if dist < closest_dist:
-              closest_dist = dist
-                closest_pos = opp_pos
-    return closest_pos, closest_dist
+  closest_pos = None
+  opps = agent.getOpponents(gameState)
+  for opp in opps:
+    opp_pos = gameState.getAgentPosition(opp)
+    if opp_pos is not None:
+      dist = agent.getMazeDistance(gameState.getAgentPosition(agent.index), opp_pos)
+      if dist < closest_dist:
+        closest_dist = dist
+        closest_pos = opp_pos
+  return closest_pos, closest_dist
 
 #################
 # Team creation #
@@ -47,29 +47,29 @@ class MattAgent(CaptureAgent):
 
   def registerInitialState(self, gameState):
     '''
-      Make sure you do not delete the following line. If you would like to
-      use Manhattan distances instead of maze distances in order to save
-      on initialization time, please take a look at
-      CaptureAgent.registerInitialState in captureAgents.py.
-      '''
-      CaptureAgent.registerInitialState(self, gameState)
+    Make sure you do not delete the following line. If you would like to
+    use Manhattan distances instead of maze distances in order to save
+    on initialization time, please take a look at
+    CaptureAgent.registerInitialState in captureAgents.py.
+    '''
+    CaptureAgent.registerInitialState(self, gameState)
 
-      '''
-      Your initialization code goes here, if you need any.
-      '''
-      self.start = gameState.getAgentPosition(self.index)
-      self.init()
-      # beliefs: a list of beliefs about each agent's position indexed
-      # by agent index
-      # Each element is a Counter of probabilities with board coordinates
-      # as the key
-      walls = gameState.getWalls()
-      self.mazeWidth = walls.width
-      self.mazeHeight = walls.height
-      self.beliefs = []
-      for agent in range(gameState.getNumAgents()):
-        self.beliefs.append(util.Counter())
-        self.resetBelief(gameState, agent)
+    '''
+    Your initialization code goes here, if you need any.
+    '''
+    self.start = gameState.getAgentPosition(self.index)
+    self.init()
+    # beliefs: a list of beliefs about each agent's position indexed
+    # by agent index
+    # Each element is a Counter of probabilities with board coordinates
+    # as the key
+    walls = gameState.getWalls()
+    self.mazeWidth = walls.width
+    self.mazeHeight = walls.height
+    self.beliefs = []
+    for agent in range(gameState.getNumAgents()):
+      self.beliefs.append(util.Counter())
+      self.resetBelief(gameState, agent)
 
   def chooseAction(self, gameState):
     self.updateBeliefs(gameState)
@@ -139,8 +139,8 @@ class MattAgent(CaptureAgent):
       # if we cannot see the agent but we could see them last turn
       # then they were most likely killed and we no longer know
       # where they are
-    elif lastState and lastState.getAgentPosition(agent) != None:
-      self.resetBelief(gameState, agent)
+      elif lastState and lastState.getAgentPosition(agent) != None:
+        self.resetBelief(gameState, agent)
         continue
       # The agent may have moved!
       # For each position we marginalise over the positions the agent may
