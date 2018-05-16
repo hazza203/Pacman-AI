@@ -32,6 +32,32 @@ def getClosestOpp(agent, gameState):
         closest_pos = opp_pos
   return closest_pos, closest_dist
 
+def getAdjacentPositions(gameState, pos):
+  '''
+  Returns a list of adjacent positions (including the same position)
+  '''
+  walls = gameState.getWalls()
+  mazeWidth = walls.width
+  mazeHeight = walls.height
+  ret = [pos]
+  x = pos[0] - 1
+  y = pos[1]
+  if x >= 0 and not gameState.hasWall(x, y):
+    ret.append((x, y))
+  x = pos[0] + 1
+  y = pos[1]
+  if x < mazeWidth and not gameState.hasWall(x, y):
+    ret.append((x, y))
+  x = pos[0]
+  y = pos[1] - 1
+  if y >= 0 and not gameState.hasWall(x, y):
+    ret.append((x, y))
+  x = pos[0]
+  y = pos[1] + 1
+  if y < mazeHeight and not gameState.hasWall(x, y):
+    ret.append((x, y))
+  return ret
+
 #################
 # Team creation #
 #################
@@ -89,29 +115,6 @@ class BaseAgent(CaptureAgent):
     weights = self.getWeights(gameState, action)
     return features * weights
 
-  def getAdjacentPositions(self, gameState, pos):
-    '''
-    Returns a list of adjacent positions (including the same position)
-    '''
-    ret = [pos]
-    x = pos[0] - 1
-    y = pos[1]
-    if x >= 0 and not gameState.hasWall(x, y):
-      ret.append((x, y))
-    x = pos[0] + 1
-    y = pos[1]
-    if x < self.mazeWidth and not gameState.hasWall(x, y):
-      ret.append((x, y))
-    x = pos[0]
-    y = pos[1] - 1
-    if y >= 0 and not gameState.hasWall(x, y):
-      ret.append((x, y))
-    x = pos[0]
-    y = pos[1] + 1
-    if y < self.mazeHeight and not gameState.hasWall(x, y):
-      ret.append((x, y))
-    return ret
-
   def resetBelief(self, gameState, agent):
     initProb = 1.0 / (self.mazeWidth * self.mazeHeight)
     for x in range(self.mazeWidth):
@@ -152,7 +155,7 @@ class BaseAgent(CaptureAgent):
       # (The agent may remain stationary so the same position is considered adjacent)
       newBelief = util.Counter()
       for pos in self.beliefs[agent]:
-       adjPositions = self.getAdjacentPositions(gameState, pos)
+       adjPositions = getAdjacentPositions(gameState, pos)
        prob = 1.0 / len(adjPositions)
        for adj in adjPositions:
 	 newBelief[adj] += self.beliefs[agent][pos] * prob
