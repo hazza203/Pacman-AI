@@ -340,7 +340,7 @@ class OffensiveAgent(BaseAgent):
     return features
 
   def getWeights(self, gameState, action):
-      
+
     weights = util.Counter()
     weights['score'] = 1.0
     weights['nearestOpponent'] = 1.0
