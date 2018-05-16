@@ -1,4 +1,4 @@
-# mattTeam.py
+# myTeam.py
 # ---------
 # Licensing Information:  You are free to use or extend these projects for
 # educational purposes provided that (1) you do not distribute or publish
@@ -37,13 +37,13 @@ def getClosestOpp(agent, gameState):
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-    first = 'MattOffAgent', second = 'MattDefAgent'):
+    first = 'OffensiveAgent', second = 'DefensiveAgent'):
 
   # The following line is an example only; feel free to change it.
     return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
 
-class MattAgent(CaptureAgent):
+class BaseAgent(CaptureAgent):
 
   def registerInitialState(self, gameState):
     '''
@@ -223,7 +223,7 @@ class MattAgent(CaptureAgent):
         return True
     return False
 
-class MattDefAgent(MattAgent):
+class DefensiveAgent(BaseAgent):
 
   def init(self):
     pass
@@ -256,7 +256,7 @@ class MattDefAgent(MattAgent):
         'stop': -100.0
         }
 
-class MattOffAgent(MattAgent):
+class OffensiveAgent(BaseAgent):
 
   def init(self):
     self.foodCarried = 0
