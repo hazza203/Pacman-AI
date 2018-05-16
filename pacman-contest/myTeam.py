@@ -222,8 +222,8 @@ class BaseAgent(CaptureAgent):
     return False
 
   def getLastAction(self, previousState, currentState):
-    oldPos = previousState.getAgentPositon(self.index)
-    curPos = currentState.getAgentPostion(self.index)
+    oldPos = previousState.getAgentPosition(self.index)
+    curPos = currentState.getAgentPosition(self.index)
 
     x,y = oldPos
     nx, ny = curPos
@@ -304,13 +304,11 @@ class OffensiveAgent(BaseAgent):
       self.foodCarried = 0
       self.headingHome = False
 
-
   def getFeatures(self, gameState, action):
     nextState = gameState.generateSuccessor(self.index, action)
     myPos = nextState.getAgentState(self.index).getPosition()
     foodList = self.getFood(nextState).asList()
-
-
+    
     features = util.Counter()
     features['score'] = self.getScore(nextState)
     features['nearestOpponent'] = self.nearestOpponent(nextState)
@@ -336,6 +334,9 @@ class OffensiveAgent(BaseAgent):
       features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in foodList])
     features['distanceFromStart'] = self.getMazeDistance(myPos, self.start)
     if action == Directions.STOP: features['stop'] = 1
+    print nextState.getAgentPosition(self.index)
+    if nextState.getAgentPosition(self.index) == self.start:
+      features['died'] = 1
 
     return features
 
@@ -350,6 +351,7 @@ class OffensiveAgent(BaseAgent):
     weights['foodLeft'] = -100.0
     weights['distanceToFood'] = -2.0
     weights['trapped'] = -1000
+    weights['died'] = -10000
     if self.headingHome:
       weights['distanceFromStart'] = -5.0
     weights['stop'] = -200.0
