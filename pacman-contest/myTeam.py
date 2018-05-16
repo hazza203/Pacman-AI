@@ -155,7 +155,7 @@ class BaseAgent(CaptureAgent):
        adjPositions = self.getAdjacentPositions(gameState, pos)
        prob = 1.0 / len(adjPositions)
        for adj in adjPositions:
-	 newBelief[adj] += self.beliefs[agent][pos] * prob
+        newBelief[adj] += self.beliefs[agent][pos] * prob
       self.beliefs[agent] = newBelief
       # PofE: the marginal probability of getting this fuzzy reading
       # (E for 'Evidence')
@@ -221,6 +221,24 @@ class BaseAgent(CaptureAgent):
         return True
     return False
 
+  def getLastAction(self, previousState, currentState):
+    oldPos = previousState.getAgentPositon(self.index)
+    curPos = currentState.getAgentPostion(self.index)
+
+    x,y = oldPos
+    nx, ny = curPos
+    if nx > x:
+      return Directions.EAST
+    elif nx < x:
+      return Directions.WEST
+    elif ny > y:
+      return Directions.NORTH
+    elif ny < y:
+      return Directions.SOUTH
+    else:
+      return Directions.STOP
+
+
 class DefensiveAgent(BaseAgent):
 
   def init(self):
@@ -260,12 +278,18 @@ class OffensiveAgent(BaseAgent):
     self.foodCarried = 0
     self.onHomeSide = True
     self.headingHome = False
+    self.scaredTime = 0
 
   def updateState(self, gameState):
     myPos = gameState.getAgentState(self.index).getPosition()
     foodList = self.getFood(gameState).asList()
     foodThisTurn = len(foodList)
     lastState = self.getPreviousObservation()
+    opps = self.getOpponents(gameState)
+    self.scaredTime = 0
+    for opp in opps:
+      if gameState.getAgentState(opp).scaredTimer > 0:
+        self.scaredTime = gameState.getAgentState(opp).scaredTimer
     if lastState:
       foodLastTurn = len(self.getFood(lastState).asList())
       if foodThisTurn < foodLastTurn:
@@ -274,22 +298,39 @@ class OffensiveAgent(BaseAgent):
       self.onHomeSide = False
     else:
       self.onHomeSide = True
-    if self.foodCarried > 3:
+    if (self.foodCarried > 3 and self.scaredTime < 4) or len(foodList) == 0:
       self.headingHome = True
     if self.foodCarried > 0 and self.onHomeSide:
       self.foodCarried = 0
       self.headingHome = False
+
 
   def getFeatures(self, gameState, action):
     nextState = gameState.generateSuccessor(self.index, action)
     myPos = nextState.getAgentState(self.index).getPosition()
     foodList = self.getFood(nextState).asList()
 
+
     features = util.Counter()
     features['score'] = self.getScore(nextState)
     features['nearestOpponent'] = self.nearestOpponent(nextState)
-    if features['nearestOpponent'] < 3:
-      features['enemyNearby'] = 1
+    if self.scaredTime == 0:
+      if features['nearestOpponent'] < 4:
+        if len(nextState.getLegalActions(self.index)) == 2:
+          features['trapped'] = 1
+        if features['nearestOpponent'] != 0:
+          features['enemyNearby'] = 3 / features['nearestOpponent']
+          if features['nearestOpponent'] < 6 and self.onHomeSide:
+            features['enemyNearby'] = 6 / features['nearestOpponent']
+        else:
+          features['enemyNearby'] = 1
+      caps = self.getCapsules(gameState)
+      if len(caps) > 0:
+        nearestCapsule = min([self.getMazeDistance(myPos, cap) for cap in caps])
+        if nearestCapsule < 3:
+          features['nearestCapsule'] = 1
+          if len(self.getCapsules(nextState)) == 0:
+            features['eatenCapsule'] = 1
     features['foodLeft'] = len(foodList)
     if len(foodList) > 0:
       features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in foodList])
@@ -303,11 +344,14 @@ class OffensiveAgent(BaseAgent):
     weights['score'] = 1.0
     weights['nearestOpponent'] = 1.0
     weights['enemyNearby'] = -200.0
+    weights['nearestCapsule'] = 100.0
+    weights['eatenCapsule'] = 1000
     weights['foodLeft'] = -100.0
     weights['distanceToFood'] = -2.0
+    weights['trapped'] = -1000
     if self.headingHome:
       weights['distanceFromStart'] = -5.0
-    weights['stop'] = -100.0
+    weights['stop'] = -200.0
     return weights
 
 # vi: sw=2
