@@ -73,6 +73,8 @@ class BaseAgent(CaptureAgent):
 
   def chooseAction(self, gameState):
     self.updateBeliefs(gameState)
+    if self.index == 0:
+      self.displayDistributionsOverPositions(self.beliefs)
     self.updateState(gameState)
 
     actions = gameState.getLegalActions(self.index)
@@ -150,14 +152,10 @@ class BaseAgent(CaptureAgent):
       # (The agent may remain stationary so the same position is considered adjacent)
       newBelief = util.Counter()
       for pos in self.beliefs[agent]:
-        # The agents can't move into walls
-        if gameState.hasWall(pos[0], pos[1]):
-          continue
-        adjPositions = self.getAdjacentPositions(gameState, pos)
-        prob = 1.0 / len(adjPositions)
-        newBelief[pos] = self.beliefs[agent][pos] * prob
-        for adj in adjPositions:
-          newBelief[pos] += self.beliefs[agent][adj] * prob
+       adjPositions = self.getAdjacentPositions(gameState, pos)
+       prob = 1.0 / len(adjPositions)
+       for adj in adjPositions:
+	 newBelief[adj] += self.beliefs[agent][pos] * prob
       self.beliefs[agent] = newBelief
       # PofE: the marginal probability of getting this fuzzy reading
       # (E for 'Evidence')
