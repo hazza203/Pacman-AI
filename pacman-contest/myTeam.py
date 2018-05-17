@@ -82,8 +82,9 @@ class BaseAgent(CaptureAgent):
 
     for opp in self.getOpponents(gameState):
       if gameState.getAgentPosition(opp):
-        _, action = self.miniMax(gameState, 2, opp, self.index)
-        return action
+        if self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(opp)) < 5:
+          _, action = self.expectiMax(gameState, 4, opp, self.index)
+          return action
     actions = gameState.getLegalActions(self.index)
     values = [self.evaluate(gameState, a) for a in actions]
     maxValue = max(values)
@@ -91,26 +92,33 @@ class BaseAgent(CaptureAgent):
 
     return random.choice(bestActions)
 
-  def miniMax(self, gameState, depth, opp, agent):
+  def expectiMax(self, gameState, depth, opp, agent):
     actions = gameState.getLegalActions(agent)
     if depth == 0:
+      self.updateState(gameState)
       return max(self.evaluate(gameState, a) for a in actions), None
 
     values = []
     if agent == self.index:
       for action in actions:
         nextState = gameState.generateSuccessor(self.index, action)
-        values.append(self.miniMax(nextState, depth, opp, opp)[0])
+        values.append(self.expectiMax(nextState, depth - 1, opp, opp)[0])
       maxValue = max(values)
       bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+      if Directions.STOP in bestActions and len(bestActions) > 1:
+        bestActions.remove(Directions.STOP)
+      if depth == 4:
+        print bestActions
       return maxValue, random.choice(bestActions)
     if agent == opp:
       for action in actions:
         nextState = gameState.generateSuccessor(opp, action)
-        values.append(self.miniMax(nextState, depth - 1, opp, self.index)[0])
-      minValue = min(values)
-      bestActions = [a for a, v in zip(actions, values) if v == minValue]
-      return minValue, random.choice(bestActions)
+        values.append(self.expectiMax(nextState, depth - 1, opp, self.index)[0])
+      total = 0
+      for value in values:
+        total += value
+      avg = total / float(len(values))
+      return avg, None
 
   def evaluate(self, gameState, action):
     features = self.getFeatures(gameState, action)
@@ -374,16 +382,19 @@ class OffensiveAgent(BaseAgent):
         if nearestopp != 0:
           features['enemyNearby'] = 3 / nearestopp
           if nearestopp < 6 and self.onHomeSide:
-            features['enemyNearby'] = 6 / nearestopp
+            features['enemyNearby'] = 5 / nearestopp
         else:
           features['enemyNearby'] = 1
       caps = self.getCapsules(gameState)
       if len(caps) > 0:
         nearestCapsule = min([self.getMazeDistance(myPos, cap) for cap in caps])
         if nearestCapsule < 4:
-          features['nearestCapsule'] = 1
-          if len(self.getCapsules(nextState)) == 0:
+          if nearestCapsule != 0:
+            features['nearestCapsule'] = 3 / nearestCapsule
+          else:
             features['eatenCapsule'] = 1
+    elif self.scaredTime > 4:
+      features['scary'] = 1
     features['foodLeft'] = len(foodList)
     if len(foodList) > 0:
       features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in foodList])
@@ -399,12 +410,13 @@ class OffensiveAgent(BaseAgent):
     weights = util.Counter()
     weights['score'] = 1.0
     weights['enemyNearby'] = -200.0
-    weights['nearestCapsule'] = 100.0
+    weights['nearestCapsule'] = 200.0
     weights['eatenCapsule'] = 1000
     weights['foodLeft'] = -100.0
     weights['distanceToFood'] = -2.0
     weights['trapped'] = -100
     weights['died'] = -10000
+    weights['scary'] = 1000
     if self.headingHome:
       weights['distanceFromStart'] = -5.0
     weights['stop'] = -200.0
