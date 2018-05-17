@@ -18,6 +18,9 @@ import random, time, util
 from game import Directions
 import game
 
+import cProfile
+import pstats
+
 def getAdjacentPositions(gameState, pos):
     '''
     Returns a list of adjacent positions (including the same position)
@@ -85,6 +88,8 @@ class BaseAgent(CaptureAgent):
         self.init()
 
     def chooseAction(self, gameState):
+        #pr = cProfile.Profile()
+        #pr.enable()
         self.updateBeliefs(gameState)
         if self.index == 0:
             self.displayDistributionsOverPositions(self.beliefs)
@@ -94,6 +99,9 @@ class BaseAgent(CaptureAgent):
         values = [self.evaluate(gameState, a) for a in actions]
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+        #pr.disable()
+        #ps = pstats.Stats(pr).sort_stats('cumulative')
+        #ps.print_stats()
         return random.choice(bestActions)
 
     def evaluate(self, gameState, action):
@@ -248,6 +256,7 @@ class OffensiveAgent(BaseAgent):
         self.foodCarried = 0
         self.onHomeSide = True
         self.headingHome = False
+        self.plannedPos = None
 
     def updateState(self, gameState):
         myPos = gameState.getAgentState(self.index).getPosition()
@@ -267,6 +276,7 @@ class OffensiveAgent(BaseAgent):
         if self.foodCarried > 0 and self.onHomeSide:
             self.foodCarried = 0
             self.headingHome = False
+        self.plannedPos = self.planPath(gameState)
 
     def getFeatures(self, gameState, action):
         nextState = gameState.generateSuccessor(self.index, action)
@@ -283,7 +293,7 @@ class OffensiveAgent(BaseAgent):
             features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in foodList])
         features['distanceFromStart'] = self.getMazeDistance(myPos, self.start)
         if action == Directions.STOP: features['stop'] = 1
-        if myPos == self.planPath(gameState):
+        if myPos == self.plannedPos:
             features['isOnPath'] = 1
         return features
 
