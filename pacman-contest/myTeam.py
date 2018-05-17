@@ -107,8 +107,6 @@ class BaseAgent(CaptureAgent):
       bestActions = [a for a, v in zip(actions, values) if v == maxValue]
       if Directions.STOP in bestActions and len(bestActions) > 1:
         bestActions.remove(Directions.STOP)
-      if depth == 4:
-        print bestActions
       return maxValue, random.choice(bestActions)
     if agent == opp:
       for action in actions:
@@ -375,7 +373,7 @@ class OffensiveAgent(BaseAgent):
     features = util.Counter()
     features['score'] = self.getScore(nextState)
     nearestopp = self.nearestOpponent(nextState)
-    if self.scaredTime == 0:
+    if self.scaredTime <= 4:
       if nearestopp < 4:
         if len(nextState.getLegalActions(self.index)) == 2:
           features['trapped'] = 1
@@ -393,6 +391,7 @@ class OffensiveAgent(BaseAgent):
             features['nearestCapsule'] = 3 / nearestCapsule
           else:
             features['eatenCapsule'] = 1
+
     elif self.scaredTime > 4:
       features['scary'] = 1
     features['foodLeft'] = len(foodList)
