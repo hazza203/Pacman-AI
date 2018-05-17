@@ -83,7 +83,7 @@ class BaseAgent(CaptureAgent):
     for opp in self.getOpponents(gameState):
       if gameState.getAgentPosition(opp):
         if self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(opp)) < 5:
-          _, action = self.expectiMax(gameState, 4, opp, self.index)
+          _, action = self.expectiMax(gameState, 2, opp, self.index)
           return action
     actions = gameState.getLegalActions(self.index)
     values = [self.evaluate(gameState, a) for a in actions]
