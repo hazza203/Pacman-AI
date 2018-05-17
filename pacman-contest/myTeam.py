@@ -22,356 +22,356 @@ import cProfile
 import pstats
 
 def getAdjacentPositions(gameState, pos):
-    '''
-    Returns a list of adjacent positions (including the same position)
-    '''
-    walls = gameState.getWalls()
-    mazeWidth = walls.width
-    mazeHeight = walls.height
-    ret = [pos]
-    x = pos[0] - 1
-    y = pos[1]
-    if x >= 0 and not gameState.hasWall(x, y):
-        ret.append((x, y))
-    x = pos[0] + 1
-    y = pos[1]
-    if x < mazeWidth and not gameState.hasWall(x, y):
-        ret.append((x, y))
-    x = pos[0]
-    y = pos[1] - 1
-    if y >= 0 and not gameState.hasWall(x, y):
-        ret.append((x, y))
-    x = pos[0]
-    y = pos[1] + 1
-    if y < mazeHeight and not gameState.hasWall(x, y):
-        ret.append((x, y))
-    return ret
+  '''
+  Returns a list of adjacent positions (including the same position)
+  '''
+  walls = gameState.getWalls()
+  mazeWidth = walls.width
+  mazeHeight = walls.height
+  ret = [pos]
+  x = pos[0] - 1
+  y = pos[1]
+  if x >= 0 and not gameState.hasWall(x, y):
+    ret.append((x, y))
+  x = pos[0] + 1
+  y = pos[1]
+  if x < mazeWidth and not gameState.hasWall(x, y):
+    ret.append((x, y))
+  x = pos[0]
+  y = pos[1] - 1
+  if y >= 0 and not gameState.hasWall(x, y):
+    ret.append((x, y))
+  x = pos[0]
+  y = pos[1] + 1
+  if y < mazeHeight and not gameState.hasWall(x, y):
+    ret.append((x, y))
+  return ret
 
 #################
 # Team creation #
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-        first = 'OffensiveAgent', second = 'DefensiveAgent'):
+    first = 'OffensiveAgent', second = 'DefensiveAgent'):
 
-    # The following line is an example only; feel free to change it.
-    return [eval(first)(firstIndex), eval(second)(secondIndex)]
+  # The following line is an example only; feel free to change it.
+  return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
 
 class BaseAgent(CaptureAgent):
 
-    def registerInitialState(self, gameState):
-        '''
-        Make sure you do not delete the following line. If you would like to
-        use Manhattan distances instead of maze distances in order to save
-        on initialization time, please take a look at
-        CaptureAgent.registerInitialState in captureAgents.py.
-        '''
-        CaptureAgent.registerInitialState(self, gameState)
+  def registerInitialState(self, gameState):
+    '''
+    Make sure you do not delete the following line. If you would like to
+    use Manhattan distances instead of maze distances in order to save
+    on initialization time, please take a look at
+    CaptureAgent.registerInitialState in captureAgents.py.
+    '''
+    CaptureAgent.registerInitialState(self, gameState)
 
-        '''
-        Your initialization code goes here, if you need any.
-        '''
-        self.start = gameState.getAgentPosition(self.index)
-        # beliefs: a list of beliefs about each agent's position indexed
-        # by agent index
-        # Each element is a Counter of probabilities with board coordinates
-        # as the key
-        walls = gameState.getWalls()
-        self.mazeWidth = walls.width
-        self.mazeHeight = walls.height
-        self.beliefs = []
-        for agent in range(gameState.getNumAgents()):
-            self.beliefs.append(util.Counter())
-            self.resetBelief(gameState, agent)
-        # init subclass
-        self.init()
+    '''
+    Your initialization code goes here, if you need any.
+    '''
+    self.start = gameState.getAgentPosition(self.index)
+    # beliefs: a list of beliefs about each agent's position indexed
+    # by agent index
+    # Each element is a Counter of probabilities with board coordinates
+    # as the key
+    walls = gameState.getWalls()
+    self.mazeWidth = walls.width
+    self.mazeHeight = walls.height
+    self.beliefs = []
+    for agent in range(gameState.getNumAgents()):
+      self.beliefs.append(util.Counter())
+      self.resetBelief(gameState, agent)
+    # init subclass
+    self.init()
 
-    def chooseAction(self, gameState):
-        #pr = cProfile.Profile()
-        #pr.enable()
-        self.updateBeliefs(gameState)
-        if self.index == 0:
-            self.displayDistributionsOverPositions(self.beliefs)
-        # update subclass
-        self.updateState(gameState)
-        actions = gameState.getLegalActions(self.index)
-        values = [self.evaluate(gameState, a) for a in actions]
-        maxValue = max(values)
-        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-        #pr.disable()
-        #ps = pstats.Stats(pr).sort_stats('cumulative')
-        #ps.print_stats()
-        return random.choice(bestActions)
+  def chooseAction(self, gameState):
+    #pr = cProfile.Profile()
+    #pr.enable()
+    self.updateBeliefs(gameState)
+    if self.index == 0:
+      self.displayDistributionsOverPositions(self.beliefs)
+    # update subclass
+    self.updateState(gameState)
+    actions = gameState.getLegalActions(self.index)
+    values = [self.evaluate(gameState, a) for a in actions]
+    maxValue = max(values)
+    bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+    #pr.disable()
+    #ps = pstats.Stats(pr).sort_stats('cumulative')
+    #ps.print_stats()
+    return random.choice(bestActions)
 
-    def evaluate(self, gameState, action):
-        features = self.getFeatures(gameState, action)
-        weights = self.getWeights(gameState, action)
-        return features * weights
+  def evaluate(self, gameState, action):
+    features = self.getFeatures(gameState, action)
+    weights = self.getWeights(gameState, action)
+    return features * weights
 
-    def resetBelief(self, gameState, agent):
-        initProb = 1.0 / (self.mazeWidth * self.mazeHeight)
-        for x in range(self.mazeWidth):
-            for y in range(self.mazeHeight):
-                if gameState.hasWall(x, y):
-                    self.beliefs[agent][(x,y)] = 0.0
-                else:
-                    self.beliefs[agent][(x,y)] = initProb
+  def resetBelief(self, gameState, agent):
+    initProb = 1.0 / (self.mazeWidth * self.mazeHeight)
+    for x in range(self.mazeWidth):
+      for y in range(self.mazeHeight):
+        if gameState.hasWall(x, y):
+          self.beliefs[agent][(x,y)] = 0.0
+        else:
+          self.beliefs[agent][(x,y)] = initProb
 
-    def updateBeliefs(self, gameState):
-        '''
-        Update the probabilities of each agent being in each position
-        using Bayesian Inference
-        '''
-        lastState = self.getPreviousObservation()
-        thisAgentPos = gameState.getAgentPosition(self.index)
-        fuzzyReadings = gameState.getAgentDistances()
-        for agent in range(gameState.getNumAgents()):
-            # if we can actually see the agent set their current position
-            # as the only location
-            actualPos = gameState.getAgentPosition(agent)
-            if actualPos:
-                for pos in self.beliefs[agent]:
-                    self.beliefs[agent][pos] = 0.0
-                    self.beliefs[agent][actualPos] = 1.0
-                continue
-            # if we cannot see the agent but we could see them last turn
-            # then they were most likely killed and we no longer know
-            # where they are
-            elif lastState and lastState.getAgentPosition(agent) != None:
-                self.resetBelief(gameState, agent)
-                continue
-            # The agent may have moved!
-            # For each position we marginalise over the positions the agent may
-            # have been last turn
-            # Assuming the agent is moving randomly the probability of making a particular
-            # move is 1/(number of adjacent positions)
-            # (The agent may remain stationary so the same position is considered adjacent)
-            newBelief = util.Counter()
-            for pos in self.beliefs[agent]:
-                adjPositions = getAdjacentPositions(gameState, pos)
-                prob = 1.0 / len(adjPositions)
-                for adj in adjPositions:
-                    newBelief[adj] += self.beliefs[agent][pos] * prob
-            self.beliefs[agent] = newBelief
-            # PofE: the marginal probability of getting this fuzzy reading
-            # (E for 'Evidence')
-            # We get this by marginalising over the probability of getting
-            # the reading for each position
-            # i.e. where E is the reading and Xn is the position:
-            # P(E) = P(E|X1)P(X1) + P(E|X2)P(X2) + ...
-            # This is the denominator in Baye's rule
-            PofE = 0
-            for pos in self.beliefs[agent]:
-                trueDist = util.manhattanDistance(thisAgentPos, pos)
-            # PofEgivenPos: the probability we would get this reading
-            # given the agent is in this position, i.e.:
-            # P(E|X)
-            PofEgivenPos = gameState.getDistanceProb(trueDist, fuzzyReadings[agent])
-            PofE += PofEgivenPos * self.beliefs[agent][pos]
-            # Avoid division by zero
-            if not PofE:
-                PofE = 0.001
-            # Now we update with Baye's rule:
-            # P(X|E) = (P(E|X) * P(X)) / P(E)
-            for pos in self.beliefs[agent]:
-                trueDist = util.manhattanDistance(thisAgentPos, pos)
-                PofEgivenPos = gameState.getDistanceProb(trueDist, fuzzyReadings[agent])
-                self.beliefs[agent][pos] = (PofEgivenPos * self.beliefs[agent][pos]) / PofE
+  def updateBeliefs(self, gameState):
+    '''
+    Update the probabilities of each agent being in each position
+    using Bayesian Inference
+    '''
+    lastState = self.getPreviousObservation()
+    thisAgentPos = gameState.getAgentPosition(self.index)
+    fuzzyReadings = gameState.getAgentDistances()
+    for agent in range(gameState.getNumAgents()):
+      # if we can actually see the agent set their current position
+      # as the only location
+      actualPos = gameState.getAgentPosition(agent)
+      if actualPos:
+        for pos in self.beliefs[agent]:
+          self.beliefs[agent][pos] = 0.0
+          self.beliefs[agent][actualPos] = 1.0
+        continue
+      # if we cannot see the agent but we could see them last turn
+      # then they were most likely killed and we no longer know
+      # where they are
+      elif lastState and lastState.getAgentPosition(agent) != None:
+        self.resetBelief(gameState, agent)
+        continue
+      # The agent may have moved!
+      # For each position we marginalise over the positions the agent may
+      # have been last turn
+      # Assuming the agent is moving randomly the probability of making a particular
+      # move is 1/(number of adjacent positions)
+      # (The agent may remain stationary so the same position is considered adjacent)
+      newBelief = util.Counter()
+      for pos in self.beliefs[agent]:
+        adjPositions = getAdjacentPositions(gameState, pos)
+        prob = 1.0 / len(adjPositions)
+        for adj in adjPositions:
+          newBelief[adj] += self.beliefs[agent][pos] * prob
+      self.beliefs[agent] = newBelief
+      # PofE: the marginal probability of getting this fuzzy reading
+      # (E for 'Evidence')
+      # We get this by marginalising over the probability of getting
+      # the reading for each position
+      # i.e. where E is the reading and Xn is the position:
+      # P(E) = P(E|X1)P(X1) + P(E|X2)P(X2) + ...
+      # This is the denominator in Baye's rule
+      PofE = 0
+      for pos in self.beliefs[agent]:
+        trueDist = util.manhattanDistance(thisAgentPos, pos)
+      # PofEgivenPos: the probability we would get this reading
+      # given the agent is in this position, i.e.:
+      # P(E|X)
+      PofEgivenPos = gameState.getDistanceProb(trueDist, fuzzyReadings[agent])
+      PofE += PofEgivenPos * self.beliefs[agent][pos]
+      # Avoid division by zero
+      if not PofE:
+        PofE = 0.001
+      # Now we update with Baye's rule:
+      # P(X|E) = (P(E|X) * P(X)) / P(E)
+      for pos in self.beliefs[agent]:
+        trueDist = util.manhattanDistance(thisAgentPos, pos)
+        PofEgivenPos = gameState.getDistanceProb(trueDist, fuzzyReadings[agent])
+        self.beliefs[agent][pos] = (PofEgivenPos * self.beliefs[agent][pos]) / PofE
 
-    def bestGuess(self, agent):
-        '''
-        Returns where the given agent most likely is
-        '''
-        topProb = max(self.beliefs[agent].values())
-        locs = [loc for (loc, prob) in self.beliefs[agent].items() if prob == topProb]
-        ret = random.choice(locs)
-        return ret
+  def bestGuess(self, agent):
+    '''
+    Returns where the given agent most likely is
+    '''
+    topProb = max(self.beliefs[agent].values())
+    locs = [loc for (loc, prob) in self.beliefs[agent].items() if prob == topProb]
+    ret = random.choice(locs)
+    return ret
 
-    def nearestOpponent(self, gameState):
-        '''
-        This will return the maze distance to where we think the nearest
-        opponent most likely is
-        '''
-        selfPos = gameState.getAgentPosition(self.index)
-        positions = [self.bestGuess(opp) for opp in self.getOpponents(gameState)]
-        nearestPos = None
-        minDist = 9999
-        for pos in positions:
-            if not pos:
-                continue
-            # getMazeDistance seems to complain about positions being off the grid
-            # after a pacman has been eaten
-            try:
-                dist = self.getMazeDistance(selfPos, pos)
-            except Exception:
-                continue
-            if dist < minDist:
-                minDist = dist
-                nearestPos = pos
-        return minDist
+  def nearestOpponent(self, gameState):
+    '''
+    This will return the maze distance to where we think the nearest
+    opponent most likely is
+    '''
+    selfPos = gameState.getAgentPosition(self.index)
+    positions = [self.bestGuess(opp) for opp in self.getOpponents(gameState)]
+    nearestPos = None
+    minDist = 9999
+    for pos in positions:
+      if not pos:
+        continue
+      # getMazeDistance seems to complain about positions being off the grid
+      # after a pacman has been eaten
+      try:
+        dist = self.getMazeDistance(selfPos, pos)
+      except Exception:
+        continue
+      if dist < minDist:
+        minDist = dist
+        nearestPos = pos
+    return minDist
 
-    def canSeeOpponent(self, gameState):
-        "Returns True if there is an opponent in sight"
-        for opp in self.getOpponents(gameState):
-            if gameState.getAgentPosition(opp):
-                return True
-        return False
+  def canSeeOpponent(self, gameState):
+    "Returns True if there is an opponent in sight"
+    for opp in self.getOpponents(gameState):
+      if gameState.getAgentPosition(opp):
+        return True
+    return False
 
 class DefensiveAgent(BaseAgent):
 
-    def init(self):
-        pass
+  def init(self):
+    pass
 
-    def updateState(self, gameState):
-        pass
+  def updateState(self, gameState):
+    pass
 
-    def getFeatures(self, gameState, action):
-        features = util.Counter()
-        nextState = gameState.generateSuccessor(self.index, action)
-        features['score'] = self.getScore(nextState)
-        features['nearestOpponent'] = self.nearestOpponent(nextState)
-        if nextState.getAgentState(self.index).isPacman:
-            features['onHomeSide'] = 0
-        else:
-            features['onHomeSide'] = 1
-        enemies = [nextState.getAgentState(i) for i in self.getOpponents(nextState)]
-        invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
-        features['numInvaders'] = len(invaders)
-        if action == Directions.STOP: features['stop'] = 1
-        return features
+  def getFeatures(self, gameState, action):
+    features = util.Counter()
+    nextState = gameState.generateSuccessor(self.index, action)
+    features['score'] = self.getScore(nextState)
+    features['nearestOpponent'] = self.nearestOpponent(nextState)
+    if nextState.getAgentState(self.index).isPacman:
+      features['onHomeSide'] = 0
+    else:
+      features['onHomeSide'] = 1
+    enemies = [nextState.getAgentState(i) for i in self.getOpponents(nextState)]
+    invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
+    features['numInvaders'] = len(invaders)
+    if action == Directions.STOP: features['stop'] = 1
+    return features
 
-    def getWeights(self, gameState, action):
-        return {
-                'score': 1.0,
-                'nearestOpponent': -10.0,
-                'onHomeSide': 100.0,
-                'numInvaders': -1000.0,
-                'stop': -100.0
-                }
+  def getWeights(self, gameState, action):
+    return {
+            'score': 1.0,
+            'nearestOpponent': -10.0,
+            'onHomeSide': 100.0,
+            'numInvaders': -1000.0,
+            'stop': -100.0
+            }
 
 class OffensiveAgent(BaseAgent):
 
-    def init(self):
-        self.foodCarried = 0
-        self.onHomeSide = True
-        self.headingHome = False
-        self.plannedPos = None
+  def init(self):
+    self.foodCarried = 0
+    self.onHomeSide = True
+    self.headingHome = False
+    self.plannedPos = None
 
-    def updateState(self, gameState):
-        myPos = gameState.getAgentState(self.index).getPosition()
-        foodList = self.getFood(gameState).asList()
-        foodThisTurn = len(foodList)
-        lastState = self.getPreviousObservation()
-        if lastState:
-            foodLastTurn = len(self.getFood(lastState).asList())
-            if foodThisTurn < foodLastTurn:
-                self.foodCarried += 1
-        if gameState.getAgentState(self.index).isPacman:
-            self.onHomeSide = False
+  def updateState(self, gameState):
+    myPos = gameState.getAgentState(self.index).getPosition()
+    foodList = self.getFood(gameState).asList()
+    foodThisTurn = len(foodList)
+    lastState = self.getPreviousObservation()
+    if lastState:
+      foodLastTurn = len(self.getFood(lastState).asList())
+      if foodThisTurn < foodLastTurn:
+        self.foodCarried += 1
+    if gameState.getAgentState(self.index).isPacman:
+      self.onHomeSide = False
+    else:
+      self.onHomeSide = True
+    if self.foodCarried > 3:
+      self.headingHome = True
+    if self.foodCarried > 0 and self.onHomeSide:
+      self.foodCarried = 0
+      self.headingHome = False
+    self.plannedPos = self.planPath(gameState)
+
+  def getFeatures(self, gameState, action):
+    nextState = gameState.generateSuccessor(self.index, action)
+    myPos = nextState.getAgentState(self.index).getPosition()
+    foodList = self.getFood(nextState).asList()
+
+    features = util.Counter()
+    features['score'] = self.getScore(nextState)
+    features['nearestOpponent'] = self.nearestOpponent(nextState)
+    if features['nearestOpponent'] < 3:
+      features['enemyNearby'] = 1
+    features['foodLeft'] = len(foodList)
+    if len(foodList) > 0:
+      features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in foodList])
+    features['distanceFromStart'] = self.getMazeDistance(myPos, self.start)
+    if action == Directions.STOP: features['stop'] = 1
+    if myPos == self.plannedPos:
+      features['isOnPath'] = 1
+    return features
+
+  def getWeights(self, gameState, action):
+    weights = util.Counter()
+    weights['score'] = 1.0
+    weights['nearestOpponent'] = 1.0
+    weights['enemyNearby'] = -200.0
+    weights['foodLeft'] = -100.0
+    weights['distanceToFood'] = -2.0
+    if self.headingHome:
+      weights['distanceFromStart'] = -5.0
+    weights['stop'] = -100.0
+    weights['isOnPath'] = 200
+    return weights
+
+
+  def planPath(self, gameState):
+    '''
+    Finds a path to food with Djikstra's algorithm
+    Positions nearer to enemies are more costly to encourage avoiding enemies
+    Returns the position adjacent to this agent which is the first step
+    on the path
+    '''
+
+    def distanceToEnemy(pos):
+      oppPositions = [self.bestGuess(opp) for opp in self.getOpponents(gameState)]
+      minDist = 9999
+      for oppPos in oppPositions:
+        if not oppPos:
+          continue
+        dist = util.manhattanDistance(pos, oppPos)
+        if dist < minDist:
+          minDist = dist
+      return minDist
+
+    def posCost(pos):
+      dist = distanceToEnemy(pos)
+      # avoid division by zero
+      if dist == 0:
+        dist = 0.01
+      return 1.0 + (1.0 / dist)
+
+    class SearchNode:
+      '''
+      A node in the path planning search tree.
+      When creating, pass in the parent of this node and the position of this node
+      '''
+      def __init__(self, parent, pos):
+        self.parent = parent
+        self.pos = pos
+        if parent:
+          self.cost = parent.cost + posCost(pos)
         else:
-            self.onHomeSide = True
-        if self.foodCarried > 3:
-            self.headingHome = True
-        if self.foodCarried > 0 and self.onHomeSide:
-            self.foodCarried = 0
-            self.headingHome = False
-        self.plannedPos = self.planPath(gameState)
+          self.cost = posCost(pos)
 
-    def getFeatures(self, gameState, action):
-        nextState = gameState.generateSuccessor(self.index, action)
-        myPos = nextState.getAgentState(self.index).getPosition()
-        foodList = self.getFood(nextState).asList()
+    selfPos = gameState.getAgentPosition(self.index)
+    frontier = util.PriorityQueue()
+    food = self.getFood(gameState)
+    node = SearchNode(None, selfPos)
+    visited = [node.pos]
+    while not food[node.pos[0]][node.pos[1]]:
+      adj = getAdjacentPositions(gameState, node.pos)
+      for pos in adj:
+        newNode = SearchNode(node, pos)
+        if pos not in visited:
+          frontier.push(newNode, newNode.cost)
+        # If the frontier becomes empty there is no food
+        if frontier.isEmpty():
+          return None
+        node = frontier.pop()
+        visited.append(node.pos)
+    # rewind to find the first step of the path
+    self.debugClear()
+    while node.parent != None:
+      self.debugDraw(node.pos, [0, 0, 0.5])
+      nextNode = node
+      node = node.parent
+    return nextNode.pos
 
-        features = util.Counter()
-        features['score'] = self.getScore(nextState)
-        features['nearestOpponent'] = self.nearestOpponent(nextState)
-        if features['nearestOpponent'] < 3:
-            features['enemyNearby'] = 1
-        features['foodLeft'] = len(foodList)
-        if len(foodList) > 0:
-            features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in foodList])
-        features['distanceFromStart'] = self.getMazeDistance(myPos, self.start)
-        if action == Directions.STOP: features['stop'] = 1
-        if myPos == self.plannedPos:
-            features['isOnPath'] = 1
-        return features
-
-    def getWeights(self, gameState, action):
-        weights = util.Counter()
-        weights['score'] = 1.0
-        weights['nearestOpponent'] = 1.0
-        weights['enemyNearby'] = -200.0
-        weights['foodLeft'] = -100.0
-        weights['distanceToFood'] = -2.0
-        if self.headingHome:
-            weights['distanceFromStart'] = -5.0
-        weights['stop'] = -100.0
-        weights['isOnPath'] = 200
-        return weights
-
-
-    def planPath(self, gameState):
-        '''
-        Finds a path to food with Djikstra's algorithm
-        Positions nearer to enemies are more costly to encourage avoiding enemies
-        Returns the position adjacent to this agent which is the first step
-        on the path
-        '''
-
-        def distanceToEnemy(pos):
-            oppPositions = [self.bestGuess(opp) for opp in self.getOpponents(gameState)]
-            minDist = 9999
-            for oppPos in oppPositions:
-                if not oppPos:
-                    continue
-                dist = util.manhattanDistance(pos, oppPos)
-                if dist < minDist:
-                    minDist = dist
-            return minDist
-
-        def posCost(pos):
-            dist = distanceToEnemy(pos)
-            # avoid division by zero
-            if dist == 0:
-                dist = 0.01
-            return 1.0 + (1.0 / dist)
-
-        class SearchNode:
-            '''
-            A node in the path planning search tree.
-            When creating, pass in the parent of this node and the position of this node
-            '''
-            def __init__(self, parent, pos):
-                self.parent = parent
-                self.pos = pos
-                if parent:
-                    self.cost = parent.cost + posCost(pos)
-                else:
-                    self.cost = posCost(pos)
-
-        selfPos = gameState.getAgentPosition(self.index)
-        frontier = util.PriorityQueue()
-        food = self.getFood(gameState)
-        node = SearchNode(None, selfPos)
-        visited = [node.pos]
-        while not food[node.pos[0]][node.pos[1]]:
-            adj = getAdjacentPositions(gameState, node.pos)
-            for pos in adj:
-                newNode = SearchNode(node, pos)
-                if pos not in visited:
-                    frontier.push(newNode, newNode.cost)
-            # If the frontier becomes empty there is no food
-            if frontier.isEmpty():
-                return None
-            node = frontier.pop()
-            visited.append(node.pos)
-        # rewind to find the first step of the path
-        self.debugClear()
-        while node.parent != None:
-            self.debugDraw(node.pos, [0, 0, 0.5])
-            nextNode = node
-            node = node.parent
-        return nextNode.pos
-
-# vi: sw=4
+# vi: sw=2
