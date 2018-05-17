@@ -78,9 +78,12 @@ class BaseAgent(CaptureAgent):
     # Each element is a Counter of probabilities with board coordinates
     # as the key
     walls = gameState.getWalls()
+    self.opponentsIndexes = self.getOpponents(gameState)
     self.mazeWidth = walls.width
     self.mazeHeight = walls.height
     self.beliefs = []
+    self.ourSide = (walls.width / 2) - 1 if gameState.isOnRedTeam(self.index) else (walls.width / 2) + 1
+
     for agent in range(gameState.getNumAgents()):
       self.beliefs.append(util.Counter())
       self.resetBelief(gameState, agent)
@@ -95,6 +98,10 @@ class BaseAgent(CaptureAgent):
       self.displayDistributionsOverPositions(self.beliefs)
     # update subclass
     self.updateState(gameState)
+    for opp in self.getOpponents(gameState):
+      if gameState.getAgentPosition(opp):
+        _, action = self.miniMax(gameState, 2, opp, self.index)
+        return action
     actions = gameState.getLegalActions(self.index)
     values = [self.evaluate(gameState, a) for a in actions]
     maxValue = max(values)
@@ -103,6 +110,27 @@ class BaseAgent(CaptureAgent):
     #ps = pstats.Stats(pr).sort_stats('cumulative')
     #ps.print_stats()
     return random.choice(bestActions)
+
+  def miniMax(self, gameState, depth, opp, agent):
+    actions = gameState.getLegalActions(agent)
+    if depth == 0:
+      return max(self.evaluate(gameState, a) for a in actions), None
+
+    values = []
+    if agent == self.index:
+      for action in actions:
+        nextState = gameState.generateSuccessor(self.index, action)
+        values.append(self.miniMax(nextState, depth, opp, opp)[0])
+      maxValue = max(values)
+      bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+      return maxValue, random.choice(bestActions)
+    if agent == opp:
+      for action in actions:
+        nextState = gameState.generateSuccessor(opp, action)
+        values.append(self.miniMax(nextState, depth - 1, opp, self.index)[0])
+      minValue = min(values)
+      bestActions = [a for a, v in zip(actions, values) if v == minValue]
+      return minValue, random.choice(bestActions)
 
   def evaluate(self, gameState, action):
     features = self.getFeatures(gameState, action)
@@ -211,12 +239,52 @@ class BaseAgent(CaptureAgent):
         nearestPos = pos
     return minDist
 
+  def nearestInvader(self, gameState):
+    selfPos = gameState.getAgentPosition(self.index)
+    positions = [self.bestGuess(opp) for opp in self.getOpponents(gameState)]
+    minDist = 9999
+    for pos in positions:
+      if not pos:
+        continue
+      x,_ = pos
+      if gameState.isOnRedTeam(self.index):
+        if x > self.ourSide:
+          continue
+      else:
+        if x < self.ourSide:
+          continue
+      try:
+        dist = self.getMazeDistance(selfPos, pos)
+      except Exception:
+        continue
+      if dist < minDist:
+        minDist = dist
+    return minDist
+
   def canSeeOpponent(self, gameState):
     "Returns True if there is an opponent in sight"
     for opp in self.getOpponents(gameState):
       if gameState.getAgentPosition(opp):
         return True
     return False
+
+  def getLastAction(self, previousState, currentState):
+    oldPos = previousState.getAgentPosition(self.index)
+    curPos = currentState.getAgentPosition(self.index)
+
+    x,y = oldPos
+    nx, ny = curPos
+    if nx > x:
+      return Directions.EAST
+    elif nx < x:
+      return Directions.WEST
+    elif ny > y:
+      return Directions.NORTH
+    elif ny < y:
+      return Directions.SOUTH
+    else:
+      return Directions.STOP
+
 
 class DefensiveAgent(BaseAgent):
 
@@ -230,7 +298,10 @@ class DefensiveAgent(BaseAgent):
     features = util.Counter()
     nextState = gameState.generateSuccessor(self.index, action)
     features['score'] = self.getScore(nextState)
-    features['nearestOpponent'] = self.nearestOpponent(nextState)
+    if self.nearestInvader(gameState) > self.nearestOpponent(gameState) and self.nearestInvader(gameState) != 9999:
+      features['nearestOpponent'] = self.nearestInvader(nextState)
+    else:
+      features['nearestOpponent'] = self.nearestOpponent(nextState)
     if nextState.getAgentState(self.index).isPacman:
       features['onHomeSide'] = 0
     else:
@@ -257,12 +328,18 @@ class OffensiveAgent(BaseAgent):
     self.onHomeSide = True
     self.headingHome = False
     self.plannedPos = None
+    self.scaredTime = 0
 
   def updateState(self, gameState):
     myPos = gameState.getAgentState(self.index).getPosition()
     foodList = self.getFood(gameState).asList()
     foodThisTurn = len(foodList)
     lastState = self.getPreviousObservation()
+    opps = self.getOpponents(gameState)
+    self.scaredTime = 0
+    for opp in opps:
+      if gameState.getAgentState(opp).scaredTimer > 0:
+        self.scaredTime = gameState.getAgentState(opp).scaredTimer
     if lastState:
       foodLastTurn = len(self.getFood(lastState).asList())
       if foodThisTurn < foodLastTurn:
@@ -271,8 +348,10 @@ class OffensiveAgent(BaseAgent):
       self.onHomeSide = False
     else:
       self.onHomeSide = True
-    if self.foodCarried > 3:
+    if self.foodCarried > 3 or len(foodList) == 2:
       self.headingHome = True
+    if self.scaredTime > 5:
+      self.headingHome = False
     if self.foodCarried > 0 and self.onHomeSide:
       self.foodCarried = 0
       self.headingHome = False
@@ -285,9 +364,24 @@ class OffensiveAgent(BaseAgent):
 
     features = util.Counter()
     features['score'] = self.getScore(nextState)
-    features['nearestOpponent'] = self.nearestOpponent(nextState)
-    if features['nearestOpponent'] < 3:
-      features['enemyNearby'] = 1
+    nearestopp = self.nearestOpponent(nextState)
+    if self.scaredTime == 0:
+      if nearestopp < 4:
+        if len(nextState.getLegalActions(self.index)) == 2:
+          features['trapped'] = 1
+        if nearestopp != 0:
+          features['enemyNearby'] = 3 / nearestopp
+          if nearestopp < 6 and self.onHomeSide:
+            features['enemyNearby'] = 6 / nearestopp
+        else:
+          features['enemyNearby'] = 1
+      caps = self.getCapsules(gameState)
+      if len(caps) > 0:
+        nearestCapsule = min([self.getMazeDistance(myPos, cap) for cap in caps])
+        if nearestCapsule < 4:
+          features['nearestCapsule'] = 1
+          if len(self.getCapsules(nextState)) == 0:
+            features['eatenCapsule'] = 1
     features['foodLeft'] = len(foodList)
     if len(foodList) > 0:
       features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in foodList])
@@ -295,19 +389,26 @@ class OffensiveAgent(BaseAgent):
     if action == Directions.STOP: features['stop'] = 1
     if myPos == self.plannedPos:
       features['isOnPath'] = 1
+    if nextState.getAgentPosition(self.index) == self.start and not self.onHomeSide:
+      features['died'] = 1
+
     return features
 
   def getWeights(self, gameState, action):
+
     weights = util.Counter()
     weights['score'] = 1.0
-    weights['nearestOpponent'] = 1.0
     weights['enemyNearby'] = -200.0
+    weights['nearestCapsule'] = 100.0
+    weights['eatenCapsule'] = 1000
     weights['foodLeft'] = -100.0
     weights['distanceToFood'] = -2.0
+    weights['trapped'] = -100
+    weights['died'] = -10000
     if self.headingHome:
       weights['distanceFromStart'] = -5.0
-    weights['stop'] = -100.0
     weights['isOnPath'] = 200
+    weights['stop'] = -200.0
     return weights
 
 
