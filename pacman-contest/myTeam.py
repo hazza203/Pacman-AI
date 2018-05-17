@@ -64,6 +64,7 @@ class BaseAgent(CaptureAgent):
     # Each element is a Counter of probabilities with board coordinates
     # as the key
     walls = gameState.getWalls()
+    self.opponentsIndexes = self.getOpponents(gameState)
     self.mazeWidth = walls.width
     self.mazeHeight = walls.height
     self.beliefs = []
@@ -79,12 +80,37 @@ class BaseAgent(CaptureAgent):
       self.displayDistributionsOverPositions(self.beliefs)
     self.updateState(gameState)
 
+    for opp in self.getOpponents(gameState):
+      if gameState.getAgentPosition(opp):
+        _, action = self.miniMax(gameState, 2, opp, self.index)
+        return action
     actions = gameState.getLegalActions(self.index)
     values = [self.evaluate(gameState, a) for a in actions]
     maxValue = max(values)
     bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 
     return random.choice(bestActions)
+
+  def miniMax(self, gameState, depth, opp, agent):
+    actions = gameState.getLegalActions(agent)
+    if depth == 0:
+      return max(self.evaluate(gameState, a) for a in actions), None
+
+    values = []
+    if agent == self.index:
+      for action in actions:
+        nextState = gameState.generateSuccessor(self.index, action)
+        values.append(self.miniMax(nextState, depth, opp, opp)[0])
+      maxValue = max(values)
+      bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+      return maxValue, random.choice(bestActions)
+    if agent == opp:
+      for action in actions:
+        nextState = gameState.generateSuccessor(opp, action)
+        values.append(self.miniMax(nextState, depth - 1, opp, self.index)[0])
+      minValue = min(values)
+      bestActions = [a for a, v in zip(actions, values) if v == minValue]
+      return minValue, random.choice(bestActions)
 
   def evaluate(self, gameState, action):
     features = self.getFeatures(gameState, action)
@@ -337,7 +363,7 @@ class OffensiveAgent(BaseAgent):
     nextState = gameState.generateSuccessor(self.index, action)
     myPos = nextState.getAgentState(self.index).getPosition()
     foodList = self.getFood(nextState).asList()
-    
+
     features = util.Counter()
     features['score'] = self.getScore(nextState)
     nearestopp = self.nearestOpponent(nextState)
