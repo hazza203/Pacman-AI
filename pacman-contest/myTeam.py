@@ -88,6 +88,7 @@ class BaseAgent(CaptureAgent):
     self.mazeWidth = walls.width
     self.mazeHeight = walls.height
     self.beliefs = []
+    self.oppPos = [0, 0, 0, 0]
     self.ourSide = (walls.width / 2) - 1 if gameState.isOnRedTeam(self.index) else (walls.width / 2) + 1
 
     for agent in range(gameState.getNumAgents()):
@@ -176,12 +177,14 @@ class BaseAgent(CaptureAgent):
         for pos in self.beliefs[agent]:
           self.beliefs[agent][pos] = 0.0
           self.beliefs[agent][actualPos] = 1.0
+        self.updateLocation(agent)
         continue
       # if we cannot see the agent but we could see them last turn
       # then they were most likely killed and we no longer know
       # where they are
       elif lastState and lastState.getAgentPosition(agent) != None:
         self.resetBelief(gameState, agent)
+        self.updateLocation(agent)
         continue
       # The agent may have moved!
       # For each position we marginalise over the positions the agent may
@@ -220,15 +223,20 @@ class BaseAgent(CaptureAgent):
         trueDist = util.manhattanDistance(thisAgentPos, pos)
         PofEgivenPos = gameState.getDistanceProb(trueDist, fuzzyReadings[agent])
         self.beliefs[agent][pos] = (PofEgivenPos * self.beliefs[agent][pos]) / PofE
+      # update our best guess at where this agent is
+      self.updateLocation(agent)
+
+  def updateLocation(self, agent):
+    'Update our best guess at where this agent is'
+    topProb = max(self.beliefs[agent].values())
+    locs = [loc for (loc, prob) in self.beliefs[agent].items() if prob == topProb]
+    self.oppPos[agent] = random.choice(locs)
 
   def bestGuess(self, agent):
     '''
     Returns where the given agent most likely is
     '''
-    topProb = max(self.beliefs[agent].values())
-    locs = [loc for (loc, prob) in self.beliefs[agent].items() if prob == topProb]
-    ret = random.choice(locs)
-    return ret
+    return self.oppPos[agent]
 
   def nearestOpponent(self, gameState):
     '''
