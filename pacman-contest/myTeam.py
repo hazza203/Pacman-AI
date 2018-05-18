@@ -105,17 +105,24 @@ class BaseAgent(CaptureAgent):
       self.displayDistributionsOverPositions(self.beliefs)
     # update subclass
     self.turnUpdate(gameState)
+    minDist = 5
+    agent = None
     for opp in self.getOpponents(gameState):
       if gameState.getAgentPosition(opp):
-        if self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(opp)) < 5:
-          if debugOpt == 'profile':
+        dist = self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(opp))
+        if dist < minDist:
+            minDist = dist
+            agent = opp
+    if agent is not None:
+        if debugOpt == 'profile':
             pr = cProfile.Profile()
             pr.enable()
-          _, action = self.expectiMax(gameState, 2, opp, self.index)
-          if debugOpt == 'profile':
+        _, action = self.expectiMax(gameState, 2, agent, self.index)
+        if debugOpt == 'profile':
             pr.disable()
             pr.dump_stats('profile')
-          return action
+        return action
+
     actions = gameState.getLegalActions(self.index)
     values = [self.evaluate(gameState, a) for a in actions]
     maxValue = max(values)
@@ -371,7 +378,6 @@ class OffensiveAgent(BaseAgent):
     foodThisTurn = len(self.foodList)
     lastState = self.getPreviousObservation()
     opps = self.getOpponents(gameState)
-    print len(self.foodList)
     self.removed = set()
     self.scaredTime = 0
     for opp in opps:
@@ -381,7 +387,6 @@ class OffensiveAgent(BaseAgent):
       if foodThisTurn < foodLastTurn:
         self.foodCarried += 1
 
-      print 'now I have ', self.foodCarried, ' food'
     if gameState.getAgentState(self.index).isPacman:
       self.onHomeSide = False
     else:
@@ -396,7 +401,7 @@ class OffensiveAgent(BaseAgent):
     if self.foodCarried > 0 and self.onHomeSide:
       self.foodCarried = 0
       self.headingHome = False
-    self.plannedPos = self.planPath(gameState)
+    #self.plannedPos = self.planPath(gameState)
 
   def updateState(self, gameState):
     myPos = gameState.getAgentState(self.index).getPosition()
@@ -460,15 +465,14 @@ class OffensiveAgent(BaseAgent):
       features['scary'] = 1
     features['distanceFromStart'] = self.getMazeDistance(myPos, self.start)
     if action == Directions.STOP: features['stop'] = 1
-    if myPos == self.plannedPos:
-      features['isOnPath'] = 1
+    #if myPos == self.plannedPos:
+     # features['isOnPath'] = 1
     if nextState.getAgentPosition(self.index) == self.start and not self.onHomeSide:
       features['died'] = 1
     features['foodLeft'] = len(self.foodList)
     if len(self.foodList) > 0:
       features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in self.foodList])
     if self.futureDeath:
-      print "died in future"
       features['futureDeath'] = 1
 
     return features
@@ -486,10 +490,10 @@ class OffensiveAgent(BaseAgent):
     weights['futureDeath'] = -10000
     if self.headingHome:
       weights['distanceFromStart'] = -10.0
-      weights['isOnPath'] = 0
+      #weights['isOnPath'] = 0
     else:
       weights['distanceFromStart'] = 0
-      weights['isOnPath'] = 10.0
+      #weights['isOnPath'] = 10.0
     weights['stop'] = -200.0
     weights['foodLeft'] = -100.0
     weights['distanceToFood'] = -2.0
