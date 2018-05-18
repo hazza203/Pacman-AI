@@ -99,8 +99,8 @@ class BaseAgent(CaptureAgent):
 
   def chooseAction(self, gameState):
     self.updateBeliefs(gameState)
-    if debugOpt and self.index == 0:
-      self.displayDistributionsOverPositions(self.beliefs)
+    #if debugOpt and self.index == 0:
+      #self.displayDistributionsOverPositions(self.beliefs)
     # update subclass
     self.updateState(gameState)
     for opp in self.getOpponents(gameState):
@@ -177,14 +177,12 @@ class BaseAgent(CaptureAgent):
         for pos in self.beliefs[agent]:
           self.beliefs[agent][pos] = 0.0
           self.beliefs[agent][actualPos] = 1.0
-        self.updateLocation(agent)
         continue
       # if we cannot see the agent but we could see them last turn
       # then they were most likely killed and we no longer know
       # where they are
       elif lastState and lastState.getAgentPosition(agent) != None:
         self.resetBelief(gameState, agent)
-        self.updateLocation(agent)
         continue
       # The agent may have moved!
       # For each position we marginalise over the positions the agent may
@@ -223,7 +221,8 @@ class BaseAgent(CaptureAgent):
         trueDist = util.manhattanDistance(thisAgentPos, pos)
         PofEgivenPos = gameState.getDistanceProb(trueDist, fuzzyReadings[agent])
         self.beliefs[agent][pos] = (PofEgivenPos * self.beliefs[agent][pos]) / PofE
-      # update our best guess at where this agent is
+    # finally update our best guesses at where the agents are
+    for agent in range(gameState.getNumAgents()):
       self.updateLocation(agent)
 
   def updateLocation(self, agent):
@@ -489,11 +488,11 @@ class OffensiveAgent(BaseAgent):
         newNode = SearchNode(node, pos)
         if pos not in visited:
           frontier.push(newNode, newNode.cost)
-        # If the frontier becomes empty there is no food
-        if frontier.isEmpty():
-          return None
-        node = frontier.pop()
-        visited.append(node.pos)
+      # If the frontier becomes empty there is no food
+      if frontier.isEmpty():
+        return None
+      node = frontier.pop()
+      visited.append(node.pos)
     # rewind to find the first step of the path
     if debugOpt:
       self.debugClear()
