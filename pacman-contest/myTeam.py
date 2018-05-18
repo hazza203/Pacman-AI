@@ -233,7 +233,7 @@ class BaseAgent(CaptureAgent):
     locs = [loc for (loc, prob) in self.beliefs[agent].items() if prob == topProb]
     self.oppPos[agent] = random.choice(locs)
     if debugOpt:
-      self.debugDraw(self.oppPos[agent], [1,1,1])
+      self.debugDraw(self.oppPos[agent], [1,0,0])
 
   def bestGuess(self, agent):
     '''
