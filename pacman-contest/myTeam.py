@@ -104,7 +104,7 @@ class BaseAgent(CaptureAgent):
     if debugOpt and self.index == 0:
       self.displayDistributionsOverPositions(self.beliefs)
     # update subclass
-    self.updateState(gameState)
+    self.turnUpdate(gameState)
     for opp in self.getOpponents(gameState):
       if gameState.getAgentPosition(opp):
         if self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(opp)) < 5:
@@ -126,7 +126,7 @@ class BaseAgent(CaptureAgent):
   def expectiMax(self, gameState, depth, opp, agent):
     actions = gameState.getLegalActions(agent)
     if depth == 0:
-      #self.updateState(gameState)
+      self.updateState(gameState)
       return max(self.evaluate(gameState, a) for a in actions), None
 
     values = []
@@ -316,6 +316,9 @@ class DefensiveAgent(BaseAgent):
   def init(self):
     pass
 
+  def turnUpdate(self, gameState):
+    self.updateState(gameState)
+
   def updateState(self, gameState):
     pass
 
@@ -355,26 +358,17 @@ class OffensiveAgent(BaseAgent):
     self.plannedPos = None
     self.scaredTime = 0
 
-  def updateState(self, gameState):
-    myPos = gameState.getAgentState(self.index).getPosition()
+  def turnUpdate(self, gameState):
+    self.updateState(gameState)
+    lastState = self.getPreviousObservation()
     foodList = self.getFood(gameState).asList()
     foodThisTurn = len(foodList)
-    lastState = self.getPreviousObservation()
-    opps = self.getOpponents(gameState)
-    self.scaredTime = 0
-    for opp in opps:
-      if gameState.getAgentState(opp).scaredTimer > 0:
-        self.scaredTime = gameState.getAgentState(opp).scaredTimer
     if lastState:
       foodLastTurn = len(self.getFood(lastState).asList())
       if foodThisTurn < foodLastTurn:
         self.foodCarried += 1
         if debugOpt:
           print 'now I have ', self.foodCarried, ' food'
-    if gameState.getAgentState(self.index).isPacman:
-      self.onHomeSide = False
-    else:
-      self.onHomeSide = True
     if self.foodCarried > 3 or len(foodList) == 2:
       self.headingHome = True
       if debugOpt:
@@ -385,6 +379,18 @@ class OffensiveAgent(BaseAgent):
       self.foodCarried = 0
       self.headingHome = False
     self.plannedPos = self.planPath(gameState)
+
+  def updateState(self, gameState):
+    myPos = gameState.getAgentState(self.index).getPosition()
+    opps = self.getOpponents(gameState)
+    self.scaredTime = 0
+    for opp in opps:
+      if gameState.getAgentState(opp).scaredTimer > 0:
+        self.scaredTime = gameState.getAgentState(opp).scaredTimer
+    if gameState.getAgentState(self.index).isPacman:
+      self.onHomeSide = False
+    else:
+      self.onHomeSide = True
 
   def getFeatures(self, gameState, action):
     nextState = gameState.generateSuccessor(self.index, action)
