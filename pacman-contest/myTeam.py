@@ -98,9 +98,11 @@ class BaseAgent(CaptureAgent):
     self.init()
 
   def chooseAction(self, gameState):
+    if debugOpt:
+      self.debugClear()
     self.updateBeliefs(gameState)
-    #if debugOpt and self.index == 0:
-      #self.displayDistributionsOverPositions(self.beliefs)
+    if debugOpt and self.index == 0:
+      self.displayDistributionsOverPositions(self.beliefs)
     # update subclass
     self.updateState(gameState)
     for opp in self.getOpponents(gameState):
@@ -124,7 +126,7 @@ class BaseAgent(CaptureAgent):
   def expectiMax(self, gameState, depth, opp, agent):
     actions = gameState.getLegalActions(agent)
     if depth == 0:
-      self.updateState(gameState)
+      #self.updateState(gameState)
       return max(self.evaluate(gameState, a) for a in actions), None
 
     values = []
@@ -230,6 +232,8 @@ class BaseAgent(CaptureAgent):
     topProb = max(self.beliefs[agent].values())
     locs = [loc for (loc, prob) in self.beliefs[agent].items() if prob == topProb]
     self.oppPos[agent] = random.choice(locs)
+    if debugOpt:
+      self.debugDraw(self.oppPos[agent], [1,1,1])
 
   def bestGuess(self, agent):
     '''
@@ -365,12 +369,16 @@ class OffensiveAgent(BaseAgent):
       foodLastTurn = len(self.getFood(lastState).asList())
       if foodThisTurn < foodLastTurn:
         self.foodCarried += 1
+        if debugOpt:
+          print 'now I have ', self.foodCarried, ' food'
     if gameState.getAgentState(self.index).isPacman:
       self.onHomeSide = False
     else:
       self.onHomeSide = True
     if self.foodCarried > 3 or len(foodList) == 2:
       self.headingHome = True
+      if debugOpt:
+        print "I'm heading home"
     if self.scaredTime > 5:
       self.headingHome = False
     if self.foodCarried > 0 and self.onHomeSide:
@@ -433,7 +441,8 @@ class OffensiveAgent(BaseAgent):
     weights['scary'] = 1000
     if self.headingHome:
       weights['distanceFromStart'] = -5.0
-    weights['isOnPath'] = 200
+    if not self.headingHome:
+      weights['isOnPath'] = 100
     weights['stop'] = -200.0
     return weights
 
@@ -458,11 +467,12 @@ class OffensiveAgent(BaseAgent):
       return minDist
 
     def posCost(pos):
+      AVOIDANCE_FACTOR = 10
       dist = distanceToEnemy(pos)
       # avoid division by zero
       if dist == 0:
         dist = 0.01
-      return 1.0 + (1.0 / dist)
+      return 1.0 + (1.0 / dist) * AVOIDANCE_FACTOR
 
     class SearchNode:
       '''
@@ -494,8 +504,6 @@ class OffensiveAgent(BaseAgent):
       node = frontier.pop()
       visited.append(node.pos)
     # rewind to find the first step of the path
-    if debugOpt:
-      self.debugClear()
     while node.parent != None:
       if debugOpt:
         self.debugDraw(node.pos, [0, 0, 0.5])
