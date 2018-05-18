@@ -133,7 +133,7 @@ class BaseAgent(CaptureAgent):
     if agent == self.index:
       for action in actions:
         nextState = gameState.generateSuccessor(self.index, action)
-        values.append(self.expectiMax(nextState, depth - 1, opp, opp)[0])
+        values.append(self.expectiMax(nextState, depth, opp, opp)[0])
       maxValue = max(values)
       bestActions = [a for a, v in zip(actions, values) if v == maxValue]
       if Directions.STOP in bestActions and len(bestActions) > 1:
@@ -323,22 +323,25 @@ class DefensiveAgent(BaseAgent):
     pass
 
   def getFeatures(self, gameState, action):
-    features = util.Counter()
-    nextState = gameState.generateSuccessor(self.index, action)
-    features['score'] = self.getScore(nextState)
-    if self.nearestInvader(gameState) > self.nearestOpponent(gameState) and self.nearestInvader(gameState) != 9999:
-      features['nearestOpponent'] = self.nearestInvader(nextState)
-    else:
-      features['nearestOpponent'] = self.nearestOpponent(nextState)
-    if nextState.getAgentState(self.index).isPacman:
-      features['onHomeSide'] = 0
-    else:
-      features['onHomeSide'] = 1
-    enemies = [nextState.getAgentState(i) for i in self.getOpponents(nextState)]
-    invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
-    features['numInvaders'] = len(invaders)
-    if action == Directions.STOP: features['stop'] = 1
-    return features
+      features = util.Counter()
+      nextState = gameState.generateSuccessor(self.index, action)
+      features['score'] = self.getScore(nextState)
+      nearestInvader = self.nearestInvader(nextState)
+      nearestOpponent = self.nearestOpponent(nextState)
+      if nearestInvader > nearestOpponent and nearestInvader != 9999:
+          features['nearestOpponent'] = nearestInvader
+      else:
+          features['nearestOpponent'] = nearestOpponent
+      if nextState.getAgentState(self.index).isPacman:
+          features['onHomeSide'] = 0
+      else:
+          features['onHomeSide'] = 1
+      enemies = [nextState.getAgentState(i) for i in self.getOpponents(nextState)]
+      invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
+      features['numInvaders'] = len(invaders)
+      if action == Directions.STOP: features['stop'] = 1
+
+      return features
 
   def getWeights(self, gameState, action):
     return {
