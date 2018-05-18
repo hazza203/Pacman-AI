@@ -21,7 +21,7 @@ import game
 import cProfile
 import pstats
 
-debug = None
+debugOpt = False
 
 def getAdjacentPositions(gameState, pos):
   '''
@@ -55,9 +55,10 @@ def getAdjacentPositions(gameState, pos):
 
 def createTeam(firstIndex, secondIndex, isRed,
     first = 'OffensiveAgent', second = 'DefensiveAgent',
-    debug = None):
+    debug = False):
 
-  debug = debug
+  global debugOpt
+  debugOpt = debug
 
   # The following line is an example only; feel free to change it.
   return [eval(first)(firstIndex), eval(second)(secondIndex)]
@@ -96,27 +97,27 @@ class BaseAgent(CaptureAgent):
     self.init()
 
   def chooseAction(self, gameState):
-    if debug:
-      pr = cProfile.Profile()
-      pr.enable()
     self.updateBeliefs(gameState)
-    if debug and self.index == 0:
+    if debugOpt and self.index == 0:
       self.displayDistributionsOverPositions(self.beliefs)
     # update subclass
     self.updateState(gameState)
     for opp in self.getOpponents(gameState):
       if gameState.getAgentPosition(opp):
         if self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(opp)) < 5:
+          if debugOpt:
+            pr = cProfile.Profile()
+            pr.enable()
           _, action = self.expectiMax(gameState, 2, opp, self.index)
+          if debugOpt:
+            pr.disable()
+            ps = pstats.Stats(pr).sort_stats('cumulative')
+            ps.print_stats()
           return action
     actions = gameState.getLegalActions(self.index)
     values = [self.evaluate(gameState, a) for a in actions]
     maxValue = max(values)
     bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-    if debug:
-      pr.disable()
-      ps = pstats.Stats(pr).sort_stats('cumulative')
-      ps.print_stats()
     return random.choice(bestActions)
 
   def expectiMax(self, gameState, depth, opp, agent):
@@ -486,9 +487,11 @@ class OffensiveAgent(BaseAgent):
         node = frontier.pop()
         visited.append(node.pos)
     # rewind to find the first step of the path
-    self.debugClear()
+    if debugOpt:
+      self.debugClear()
     while node.parent != None:
-      self.debugDraw(node.pos, [0, 0, 0.5])
+      if debugOpt:
+        self.debugDraw(node.pos, [0, 0, 0.5])
       nextNode = node
       node = node.parent
     return nextNode.pos
