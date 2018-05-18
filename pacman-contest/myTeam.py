@@ -450,7 +450,9 @@ class OffensiveAgent(BaseAgent):
     weights['scary'] = 1000
     if self.headingHome:
       weights['distanceFromStart'] = -5.0
-    if not self.headingHome:
+      weights['isOnPath'] = 0
+    else:
+      weights['distanceFromStart'] = 0
       weights['isOnPath'] = 100
     weights['stop'] = -200.0
     return weights
