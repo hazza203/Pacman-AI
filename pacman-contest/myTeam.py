@@ -423,15 +423,16 @@ class OffensiveAgent(BaseAgent):
 
     elif self.scaredTime > 4:
       features['scary'] = 1
-    features['foodLeft'] = len(self.foodList)
-    if len(self.foodList) > 0:
-      features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in self.foodList])
     features['distanceFromStart'] = self.getMazeDistance(myPos, self.start)
     if action == Directions.STOP: features['stop'] = 1
     if myPos == self.plannedPos:
       features['isOnPath'] = 1
     if nextState.getAgentPosition(self.index) == self.start and not self.onHomeSide:
       features['died'] = 1
+    #features['foodLeft'] = len(self.foodList)
+    #if len(self.foodList) > 0:
+      #features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in self.foodList])
+    #features['positionHasFood'] = myPos in self.foodList
 
     return features
 
@@ -441,19 +442,20 @@ class OffensiveAgent(BaseAgent):
     weights['score'] = 1.0
     weights['enemyNearby'] = -200.0
     weights['nearestCapsule'] = 200.0
-    weights['eatenCapsule'] = 1000
-    weights['foodLeft'] = -100.0
-    weights['distanceToFood'] = -2.0
-    weights['trapped'] = -100
-    weights['died'] = -10000
-    weights['scary'] = 1000
+    weights['eatenCapsule'] = 1000.0
+    weights['trapped'] = -100.0
+    weights['died'] = -10000.0
+    weights['scary'] = 1000.0
     if self.headingHome:
-      weights['distanceFromStart'] = -5.0
+      weights['distanceFromStart'] = -10.0
       weights['isOnPath'] = 0
     else:
       weights['distanceFromStart'] = 0
-      weights['isOnPath'] = 100
+      weights['isOnPath'] = 10.0
     weights['stop'] = -200.0
+    #weights['foodLeft'] = -100.0
+    #weights['distanceToFood'] = -2.0
+    #weights['positionHasFood'] = 100
     return weights
 
 
@@ -477,7 +479,7 @@ class OffensiveAgent(BaseAgent):
       return minDist
 
     def posCost(pos):
-      AVOIDANCE_FACTOR = 10
+      AVOIDANCE_FACTOR = 100
       dist = distanceToEnemy(pos)
       # avoid division by zero
       if dist == 0:
