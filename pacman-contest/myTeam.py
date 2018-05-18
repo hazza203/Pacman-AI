@@ -316,7 +316,7 @@ class DefensiveAgent(BaseAgent):
     pass
 
   def turnUpdate(self, gameState):
-    self.updateState(gameState)
+   pass
 
   def updateState(self, gameState):
     pass
@@ -360,18 +360,33 @@ class OffensiveAgent(BaseAgent):
     self.plannedPos = None
     self.scaredTime = 0
     self.foodList = []
+    self.removed = set()
+    self.futureDeath = False
 
   def turnUpdate(self, gameState):
-    self.updateState(gameState)
+    self.futureDeath = False
+    myPos = gameState.getAgentState(self.index).getPosition()
     foodLastTurn = len(self.foodList)
     self.foodList = self.getFood(gameState).asList()
     foodThisTurn = len(self.foodList)
     lastState = self.getPreviousObservation()
+    opps = self.getOpponents(gameState)
+    print len(self.foodList)
+    self.removed = set()
+    self.scaredTime = 0
+    for opp in opps:
+      if gameState.getAgentState(opp).scaredTimer > 0:
+        self.scaredTime = gameState.getAgentState(opp).scaredTimer
     if lastState:
       if foodThisTurn < foodLastTurn:
         self.foodCarried += 1
-        if debugOpt:
-          print 'now I have ', self.foodCarried, ' food'
+
+      print 'now I have ', self.foodCarried, ' food'
+    if gameState.getAgentState(self.index).isPacman:
+      self.onHomeSide = False
+    else:
+      self.onHomeSide = True
+      self.headingHome = False
     if self.foodCarried > 3 or len(self.foodList) == 2:
       self.headingHome = True
       if debugOpt:
@@ -385,15 +400,35 @@ class OffensiveAgent(BaseAgent):
 
   def updateState(self, gameState):
     myPos = gameState.getAgentState(self.index).getPosition()
+    lastState = self.getPreviousObservation()
+    lastPos = lastState.getAgentState(self.index).getPosition()
     opps = self.getOpponents(gameState)
     self.scaredTime = 0
+    foodUpdate = self.foodCarried
+    if lastPos in self.foodList:
+      foodUpdate += 1
+      self.foodList.remove(lastPos)
+      self.removed.add(lastPos)
+    if myPos in self.foodList:
+      foodUpdate += 1
+      self.foodList.remove(myPos)
+      self.removed.add(myPos)
+    for pos in self.removed:
+      if pos is not lastPos and pos is not myPos and pos not in self.foodList:
+        self.foodList.append(pos)
+
     for opp in opps:
       if gameState.getAgentState(opp).scaredTimer > 0:
         self.scaredTime = gameState.getAgentState(opp).scaredTimer
-    if gameState.getAgentState(self.index).isPacman:
-      self.onHomeSide = False
+    if foodUpdate > 3 or len(self.foodList) == 2:
+      self.headingHome = True
+      if self.scaredTime > 5:
+        self.headingHome = False
+    if myPos == self.start:
+      self.futureDeath = True
     else:
-      self.onHomeSide = True
+      self.futureDeath = False
+
 
   def getFeatures(self, gameState, action):
     nextState = gameState.generateSuccessor(self.index, action)
@@ -429,10 +464,12 @@ class OffensiveAgent(BaseAgent):
       features['isOnPath'] = 1
     if nextState.getAgentPosition(self.index) == self.start and not self.onHomeSide:
       features['died'] = 1
-    #features['foodLeft'] = len(self.foodList)
-    #if len(self.foodList) > 0:
-      #features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in self.foodList])
-    #features['positionHasFood'] = myPos in self.foodList
+    features['foodLeft'] = len(self.foodList)
+    if len(self.foodList) > 0:
+      features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in self.foodList])
+    if self.futureDeath:
+      print "died in future"
+      features['futureDeath'] = 1
 
     return features
 
@@ -446,6 +483,7 @@ class OffensiveAgent(BaseAgent):
     weights['trapped'] = -100.0
     weights['died'] = -10000.0
     weights['scary'] = 1000.0
+    weights['futureDeath'] = -10000
     if self.headingHome:
       weights['distanceFromStart'] = -10.0
       weights['isOnPath'] = 0
@@ -453,9 +491,8 @@ class OffensiveAgent(BaseAgent):
       weights['distanceFromStart'] = 0
       weights['isOnPath'] = 10.0
     weights['stop'] = -200.0
-    #weights['foodLeft'] = -100.0
-    #weights['distanceToFood'] = -2.0
-    #weights['positionHasFood'] = 100
+    weights['foodLeft'] = -100.0
+    weights['distanceToFood'] = -2.0
     return weights
 
 
