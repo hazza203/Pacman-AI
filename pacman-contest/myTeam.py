@@ -359,19 +359,20 @@ class OffensiveAgent(BaseAgent):
     self.headingHome = False
     self.plannedPos = None
     self.scaredTime = 0
+    self.foodList = []
 
   def turnUpdate(self, gameState):
     self.updateState(gameState)
+    foodLastTurn = len(self.foodList)
+    self.foodList = self.getFood(gameState).asList()
+    foodThisTurn = len(self.foodList)
     lastState = self.getPreviousObservation()
-    foodList = self.getFood(gameState).asList()
-    foodThisTurn = len(foodList)
     if lastState:
-      foodLastTurn = len(self.getFood(lastState).asList())
       if foodThisTurn < foodLastTurn:
         self.foodCarried += 1
         if debugOpt:
           print 'now I have ', self.foodCarried, ' food'
-    if self.foodCarried > 3 or len(foodList) == 2:
+    if self.foodCarried > 3 or len(self.foodList) == 2:
       self.headingHome = True
       if debugOpt:
         print "I'm heading home"
@@ -397,7 +398,6 @@ class OffensiveAgent(BaseAgent):
   def getFeatures(self, gameState, action):
     nextState = gameState.generateSuccessor(self.index, action)
     myPos = nextState.getAgentState(self.index).getPosition()
-    foodList = self.getFood(nextState).asList()
 
     features = util.Counter()
     features['score'] = self.getScore(nextState)
@@ -423,9 +423,9 @@ class OffensiveAgent(BaseAgent):
 
     elif self.scaredTime > 4:
       features['scary'] = 1
-    features['foodLeft'] = len(foodList)
-    if len(foodList) > 0:
-      features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in foodList])
+    features['foodLeft'] = len(self.foodList)
+    if len(self.foodList) > 0:
+      features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in self.foodList])
     features['distanceFromStart'] = self.getMazeDistance(myPos, self.start)
     if action == Directions.STOP: features['stop'] = 1
     if myPos == self.plannedPos:
