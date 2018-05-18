@@ -108,14 +108,13 @@ class BaseAgent(CaptureAgent):
     for opp in self.getOpponents(gameState):
       if gameState.getAgentPosition(opp):
         if self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(opp)) < 5:
-          if debugOpt:
+          if debugOpt == 'profile':
             pr = cProfile.Profile()
             pr.enable()
           _, action = self.expectiMax(gameState, 2, opp, self.index)
-          if debugOpt:
+          if debugOpt == 'profile':
             pr.disable()
-            ps = pstats.Stats(pr).sort_stats('cumulative')
-            ps.print_stats()
+            pr.dump_stats('profile')
           return action
     actions = gameState.getLegalActions(self.index)
     values = [self.evaluate(gameState, a) for a in actions]
