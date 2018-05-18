@@ -18,6 +18,7 @@ import random, time, util
 from game import Directions
 import game
 
+debug = None
 
 def getClosestOpp(agent, gameState):
   closest_dist = 99999
@@ -37,10 +38,13 @@ def getClosestOpp(agent, gameState):
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-    first = 'OffensiveAgent', second = 'DefensiveAgent'):
+    first = 'OffensiveAgent', second = 'DefensiveAgent',
+    debug = None):
+
+  debug = debug
 
   # The following line is an example only; feel free to change it.
-    return [eval(first)(firstIndex), eval(second)(secondIndex)]
+  return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
 
 class BaseAgent(CaptureAgent):
@@ -76,7 +80,7 @@ class BaseAgent(CaptureAgent):
 
   def chooseAction(self, gameState):
     self.updateBeliefs(gameState)
-    if self.index == 0:
+    if debug and self.index == 0:
       self.displayDistributionsOverPositions(self.beliefs)
     self.updateState(gameState)
 
