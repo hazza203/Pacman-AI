@@ -88,8 +88,18 @@ class BaseAgent(CaptureAgent):
     self.mazeWidth = walls.width
     self.mazeHeight = walls.height
     self.beliefs = []
+    self.home = []
     self.oppPos = [0, 0, 0, 0]
-    self.ourSide = (walls.width / 2) - 1 if gameState.isOnRedTeam(self.index) else (walls.width / 2) + 1
+    self.ourSide = (walls.width / 2)
+
+    if gameState.isOnRedTeam(self.index):
+      for x in range(0, walls.height):
+        if not gameState.hasWall(self.ourSide - 1, x):
+          self.home.append((self.ourSide - 1, x))
+    else:
+      for x in range(0, walls.height):
+        if not gameState.hasWall(self.ourSide + 1, x):
+          self.home.append((self.ourSide + 1, x))
 
     for agent in range(gameState.getNumAgents()):
       self.beliefs.append(util.Counter())
@@ -142,8 +152,7 @@ class BaseAgent(CaptureAgent):
         values.append(self.expectiMax(nextState, depth, opp, opp)[0])
       maxValue = max(values)
       bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-      if Directions.STOP in bestActions and len(bestActions) > 1:
-        bestActions.remove(Directions.STOP)
+
       return maxValue, random.choice(bestActions)
     if agent == opp:
       for action in actions:
@@ -279,6 +288,7 @@ class BaseAgent(CaptureAgent):
       if not pos:
         continue
       x,_ = pos
+
       if gameState.isOnRedTeam(self.index):
         if x > self.ourSide:
           continue
@@ -370,6 +380,7 @@ class OffensiveAgent(BaseAgent):
     self.foodList = []
     self.removed = set()
     self.futureDeath = False
+    self.eatOpponent = False
 
   def turnUpdate(self, gameState):
     self.futureDeath = False
@@ -397,8 +408,6 @@ class OffensiveAgent(BaseAgent):
       self.headingHome = False
     if self.foodCarried > 3:
       self.headingHome = True
-      if debugOpt:
-        print "I'm heading home"
     if self.scaredTime > 5:
       self.headingHome = False
     if self.foodCarried > 0 and self.onHomeSide:
@@ -411,33 +420,13 @@ class OffensiveAgent(BaseAgent):
     lastState = self.getPreviousObservation()
     lastPos = lastState.getAgentState(self.index).getPosition()
     opps = self.getOpponents(gameState)
-    self.scaredTime = 0
-    """
-    foodUpdate = self.foodCarried
-    if lastPos in self.foodList:
-      foodUpdate += 1
-      self.foodList.remove(lastPos)
-      self.removed.add(lastPos)
-    if myPos in self.foodList:
-      foodUpdate += 1
-      self.foodList.remove(myPos)
-      self.removed.add(myPos)
-    for pos in self.removed:
-      if pos is not lastPos and pos is not myPos and pos not in self.foodList:
-        self.foodList.append(pos)
-    """
 
     for opp in opps:
       if gameState.getAgentState(opp).scaredTimer > 0:
-        self.scaredTime = gameState.getAgentState(opp).scaredTimer
-    #if foodUpdate > 3 or len(self.foodList) == 0:
-     # self.headingHome = True
-      if self.scaredTime > 5:
-        self.headingHome = False
-    if myPos == self.start or lastPos == self.start:
-      self.futureDeath = True
-    else:
-      self.futureDeath = False
+        if self.scaredTime == 0:
+          self.scaredTime = gameState.getAgentState(opp).scaredTimer
+    if self.scaredTime > 5:
+      self.headingHome = False
 
 
   def getFeatures(self, gameState, action):
@@ -447,7 +436,7 @@ class OffensiveAgent(BaseAgent):
     features = util.Counter()
     features['score'] = self.getScore(nextState)
     nearestopp = self.nearestOpponent(nextState)
-    if self.scaredTime <= 4:
+    if self.scaredTime <= 4 and myPos != self.start:
       if nearestopp < 4:
         if len(nextState.getLegalActions(self.index)) == 2:
           features['trapped'] = 1
@@ -465,43 +454,42 @@ class OffensiveAgent(BaseAgent):
             features['nearestCapsule'] = 3 / nearestCapsule
           else:
             features['eatenCapsule'] = 1
+      if nextState.getAgentPosition(self.index) == self.start and not self.onHomeSide:
+        features['died'] = 1
 
-    elif self.scaredTime > 4:
+    else:
       features['scary'] = 1
     if self.headingHome:
-      features['distanceFromStart'] = self.getMazeDistance(myPos, self.start)
+      features['distanceFromStart'] = min(self.getMazeDistance(myPos, pos) for pos in self.home)
     if action == Directions.STOP: features['stop'] = 1
-    #if myPos == self.plannedPos:
-     # features['isOnPath'] = 1
-    if nextState.getAgentPosition(self.index) == self.start and not self.onHomeSide:
-      features['died'] = 1
+
     features['foodLeft'] = len(self.foodList)
     if myPos in self.foodList:
       features['foodLeft'] -= 1
     if len(self.foodList) > 0:
       features['distanceToFood'] = min([self.getMazeDistance(myPos, food) for food in self.foodList])
-    if self.futureDeath:
-      features['futureDeath'] = 1
+
 
     return features
 
   def getWeights(self, gameState, action):
 
     weights = util.Counter()
+    if self.scaredTime <= 4:
+      weights['trapped'] = -100.0
+      weights['enemyNearby'] = -200.0
+      weights['futureDeath'] = -1000.0
+      weights['nearestCapsule'] = 200.0
+      weights['eatenCapsule'] = 1000.0
+      weights['died'] = -10000.0
+    else:
+      weights['scary'] = 1000.0
+
     weights['score'] = 1.0
-    weights['enemyNearby'] = -200.0
-    weights['nearestCapsule'] = 200.0
-    weights['eatenCapsule'] = 1000.0
-    weights['trapped'] = -100.0
-    weights['died'] = -10000.0
-    weights['scary'] = 1000.0
-    weights['futureDeath'] = -200.0
     if self.headingHome:
       weights['distanceFromStart'] = -10.0
-      #weights['isOnPath'] = 0
     else:
       weights['distanceFromStart'] = 0
-      #weights['isOnPath'] = 10.0
     weights['stop'] = -200.0
     weights['foodLeft'] = -100.0
     weights['distanceToFood'] = -2.0
