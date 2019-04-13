@@ -1,8 +1,6 @@
-# RMIT COSC1125/1127 Artificial Inteligence - Pacman Project Templates
+# Artificial Intelligence playing Pacman
 
-This repository is used by students to fork their own repositories where they will do their own work for submission.
+My UC Berkeley Pacman AI Project Implementation (Completed with Matthew Box at RMIT University)
 
-You must FORK **privately** this repository and change slightly the name to ai18-pacman-projects-<your student number without the s>
-
-Check the Wiki for a template example
-
+UC Berkely Project
+http://ai.berkeley.edu/project_overview.html
